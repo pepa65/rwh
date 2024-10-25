@@ -96,6 +96,65 @@ jobs:
           path: target/${{ matrix.target }}/release/rw_${{ matrix.target }}
           if-no-files-found: error
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-tarpaulin
+      - name: Cache ~/.cargo
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-coverage-dotcargo
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-coverage-cargo-build-target
+      - name: Run tarpaulin
+        run: cargo tarpaulin --workspace --out Xml
+      - name: upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  cargo-deny:
+    name: Cargo deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - name: Checkout Rust toolcnain
+        uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v1
+
+  semver:
+    name: SemVer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          feature-group: default-features
+          features: "all"
+      - name: Extract Changelog
+        uses: release-flow/keep-a-changelog-action@v3
+        with:
+          command: query
+          version: unreleased
+
   release:
     name: Release
     runs-on: ubuntu-latest

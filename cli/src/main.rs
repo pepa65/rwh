@@ -1,18 +1,23 @@
 #![allow(clippy::too_many_arguments)]
+mod completer;
 mod util;
 
-use std::time::{Duration, Instant};
+use std::{
+    io::IsTerminal,
+    time::{Duration, Instant},
+};
 
 use async_std::sync::Arc;
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use color_eyre::{eyre, eyre::Context};
+use completer::enter_code;
 use console::{style, Term};
 use futures::{future::Either, Future, FutureExt};
 use indicatif::{MultiProgress, ProgressBar};
 use magic_wormhole::{
     forwarding, transfer,
     transit::{self, TransitInfo},
-    MailboxConnection, Wormhole,
+    MailboxConnection, ParseCodeError, ParsePasswordError, Wormhole,
 };
 use std::{io::Write, path::PathBuf};
 use tracing_subscriber::EnvFilter;
@@ -556,7 +561,7 @@ type PrintCodeFn = dyn Fn(&mut Term, &magic_wormhole::Code, &Option<url::Url>) -
 async fn parse_and_connect(
     term: &mut Term,
     common_args: CommonArgs,
-    code: Option<String>,
+    mut code: Option<String>,
     code_length: Option<usize>,
     is_send: bool,
     mut app_config: magic_wormhole::AppConfig<impl serde::Serialize + Send + Sync + 'static>,
@@ -576,11 +581,48 @@ async fn parse_and_connect(
                 .unwrap()],
         )?)
     }
-    let code = code
-        .map(Result::Ok)
-        .or_else(|| (!is_send).then(enter_code))
-        .transpose()?
-        .map(magic_wormhole::Code);
+
+    if code.is_none() && !is_send {
+        code = Some(enter_code()?)
+    }
+
+    // TODO: Apply this change to all usages after an API break
+    // https://github.com/magic-wormhole/magic-wormhole.rs/issues/193
+    // We accept a little breakage in non-interactive use, because this is a security issue
+    // Split the nameplate parsing from the code parsing to ensure we allow non-integer nameplates
+    // until the next breaking release
+    let res: Option<Result<magic_wormhole::Code, _>> = code.as_ref().map(|c| c.parse());
+    let code: Option<magic_wormhole::Code> = match res {
+        Some(Ok(code)) => Some(code),
+        // Check if an interactive terminal is connected
+        Some(Err(
+            err @ (ParseCodeError::SeparatorMissing
+            | ParseCodeError::Password(ParsePasswordError::TooShort { .. })),
+        )) => {
+            // Only fail for the case where the password is < 4 characters.
+            // Anything else will just print an error for now.
+            return Err(err.into());
+        },
+        // If we have an interactive terminal connected, also fail for low entropy
+        Some(Err(err @ ParseCodeError::Password(ParsePasswordError::LittleEntropy { .. })))
+            if std::io::stdin().is_terminal() =>
+        {
+            return Err(err.into())
+        },
+        Some(Err(err)) => {
+            tracing::error!("{} This will fail in the next release.", err);
+            code.map(|c| {
+                let (nameplate, password) = c.split_once("-").unwrap();
+                unsafe {
+                    magic_wormhole::Code::from_components(
+                        magic_wormhole::Nameplate::new_unchecked(nameplate),
+                        magic_wormhole::Password::new_unchecked(password),
+                    )
+                }
+            })
+        },
+        None => None,
+    };
 
     /* We need to track that information for when we generate a QR code */
     let mut uri_rendezvous = None;
@@ -708,15 +750,6 @@ fn create_progress_handler(pb: ProgressBar) -> impl FnMut(u64, u64) {
         }
         pb.set_position(sent);
     }
-}
-
-fn enter_code() -> eyre::Result<String> {
-    use dialoguer::Input;
-
-    Input::new()
-        .with_prompt("Enter code")
-        .interact_text()
-        .map_err(From::from)
 }
 
 fn print_welcome(term: &mut Term, welcome: Option<&str>) -> eyre::Result<()> {

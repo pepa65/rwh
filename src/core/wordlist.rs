@@ -1,10 +1,17 @@
+//! Wordlist generation and wormhole code utilities
 use rand::{rngs::OsRng, seq::SliceRandom};
 use serde_json::{self, Value};
 use std::fmt;
 
+use super::Password;
+
+/// Represents a list of words used to generate and complete wormhole codes.
+/// A wormhole code is a sequence of words used for secure communication or identification.
 #[derive(PartialEq)]
 pub struct Wordlist {
-    pub num_words: usize,
+    /// Number of words in a wormhole code
+    num_words: usize,
+    /// Odd and even wordlist
     words: Vec<Vec<String>>,
 }
 
@@ -16,46 +23,68 @@ impl fmt::Debug for Wordlist {
 
 impl Wordlist {
     #[cfg(test)]
+    #[doc(hidden)]
     pub fn new(num_words: usize, words: Vec<Vec<String>>) -> Wordlist {
         Wordlist { num_words, words }
     }
 
-    #[allow(dead_code)] // TODO make this API public one day
+    /// Completes a wormhole code
+    ///
+    /// Completion can be done either with fuzzy search (approximate string matching)
+    /// or simple `starts_with` matching.
     pub fn get_completions(&self, prefix: &str) -> Vec<String> {
-        let count_dashes = prefix.matches('-').count();
-        let mut completions = Vec::new();
-        let words = &self.words[count_dashes % self.words.len()];
+        let words = self.get_wordlist(prefix);
 
-        let last_partial_word = prefix.split('-').last();
-        let lp = if let Some(w) = last_partial_word {
-            w.len()
-        } else {
-            0
-        };
+        let (prefix_without_last, last_partial) = prefix.rsplit_once('-').unwrap_or(("", prefix));
 
-        for word in words {
-            let mut suffix: String = prefix.to_owned();
-            if word.starts_with(last_partial_word.unwrap()) {
-                if lp == 0 {
-                    suffix.push_str(word);
-                } else {
-                    let p = prefix.len() - lp;
-                    suffix.truncate(p);
-                    suffix.push_str(word);
+        #[cfg(feature = "fuzzy-complete")]
+        let matches = self.fuzzy_complete(last_partial, words);
+        #[cfg(not(feature = "fuzzy-complete"))]
+        let matches = self.normal_complete(last_partial, words);
+
+        matches
+            .into_iter()
+            .map(|word| {
+                let mut completion = String::new();
+                completion.push_str(prefix_without_last);
+                if !prefix_without_last.is_empty() {
+                    completion.push('-');
                 }
-
-                if count_dashes + 1 < self.num_words {
-                    suffix.push('-');
-                }
-
-                completions.push(suffix);
-            }
-        }
-        completions.sort();
-        completions
+                completion.push_str(&word);
+                completion
+            })
+            .collect()
     }
 
-    pub fn choose_words(&self) -> String {
+    fn get_wordlist(&self, prefix: &str) -> &Vec<String> {
+        let count_dashes = prefix.matches('-').count();
+        &self.words[count_dashes % self.words.len()]
+    }
+
+    #[cfg(feature = "fuzzy-complete")]
+    fn fuzzy_complete(&self, partial: &str, words: &[String]) -> Vec<String> {
+        // We use Jaro-Winkler algorithm because it emphasizes the beginning of a word
+        use fuzzt::algorithms::JaroWinkler;
+
+        let words = words.iter().map(|w| w.as_str()).collect::<Vec<&str>>();
+
+        fuzzt::get_top_n(partial, &words, None, None, None, Some(&JaroWinkler))
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    #[allow(unused)]
+    fn normal_complete(&self, partial: &str, words: &[String]) -> Vec<String> {
+        words
+            .iter()
+            .filter(|word| word.starts_with(partial))
+            .cloned()
+            .collect()
+    }
+
+    /// Choose wormhole code word
+    pub fn choose_words(&self) -> Password {
         let mut rng = OsRng;
         let components: Vec<String> = self
             .words
@@ -64,7 +93,23 @@ impl Wordlist {
             .take(self.num_words)
             .map(|words| words.choose(&mut rng).unwrap().to_string())
             .collect();
-        components.join("-")
+        #[allow(unsafe_code)]
+        unsafe {
+            Password::new_unchecked(components.join("-"))
+        }
+    }
+
+    #[cfg(feature = "entropy")]
+    pub(crate) fn into_words(self) -> impl Iterator<Item = String> {
+        self.words.into_iter().flatten()
+    }
+
+    /// Construct Wordlist struct with given number of words in a wormhole code
+    pub fn default_wordlist(num_words: usize) -> Wordlist {
+        Wordlist {
+            num_words,
+            words: load_pgpwords(),
+        }
     }
 }
 
@@ -96,13 +141,6 @@ fn load_pgpwords() -> Vec<Vec<String>> {
     vec![even_words, odd_words]
 }
 
-pub fn default_wordlist(num_words: usize) -> Wordlist {
-    Wordlist {
-        num_words,
-        words: load_pgpwords(),
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -119,7 +157,7 @@ mod test {
 
     #[test]
     fn test_default_wordlist() {
-        let d = default_wordlist(2);
+        let d = Wordlist::default_wordlist(2);
         assert_eq!(d.words.len(), 2);
         assert_eq!(d.words[0][0], "adroitness");
         assert_eq!(d.words[1][0], "aardvark");
@@ -127,111 +165,120 @@ mod test {
         assert_eq!(d.words[1][255], "zulu");
     }
 
-    fn vecstrings(all: &str) -> Vec<String> {
+    fn vec_strs(all: &str) -> Vec<&str> {
         all.split_whitespace()
-            .map(|s| {
-                if s == "." {
-                    String::from("")
-                } else {
-                    s.to_string()
-                }
-            })
+            .map(|s| if s == "." { "" } else { s })
             .collect()
+    }
+
+    fn vec_strings(all: &str) -> Vec<String> {
+        vec_strs(all).iter().map(|s| (*s).to_owned()).collect()
     }
 
     #[test]
     fn test_completion() {
         let words: Vec<Vec<String>> = vec![
-            vecstrings("purple green yellow"),
-            vecstrings("sausages seltzer snobol"),
+            vec_strings("purple green yellow"),
+            vec_strings("sausages seltzer snobol"),
         ];
 
         let w = Wordlist::new(2, words);
-        assert_eq!(w.get_completions(""), vec!["green-", "purple-", "yellow-"]);
-        assert_eq!(w.get_completions("pur"), vec!["purple-"]);
+        assert_eq!(w.get_completions(""), Vec::<String>::new());
+        assert_eq!(w.get_completions("9"), Vec::<String>::new());
+        assert_eq!(w.get_completions("pur"), vec!["purple"]);
         assert_eq!(w.get_completions("blu"), Vec::<String>::new());
         assert_eq!(w.get_completions("purple-sa"), vec!["purple-sausages"]);
     }
 
     #[test]
     fn test_choose_words() {
-        let few_words: Vec<Vec<String>> = vec![vecstrings("purple"), vecstrings("sausages")];
+        let few_words: Vec<Vec<String>> = vec![vec_strings("purple"), vec_strings("sausages")];
 
         let w = Wordlist::new(2, few_words.clone());
-        assert_eq!(w.choose_words(), "purple-sausages");
+        assert_eq!(w.choose_words().as_ref(), "purple-sausages");
         let w = Wordlist::new(3, few_words.clone());
-        assert_eq!(w.choose_words(), "purple-sausages-purple");
+        assert_eq!(w.choose_words().as_ref(), "purple-sausages-purple");
         let w = Wordlist::new(4, few_words);
-        assert_eq!(w.choose_words(), "purple-sausages-purple-sausages");
+        assert_eq!(w.choose_words().as_ref(), "purple-sausages-purple-sausages");
     }
 
     #[test]
     fn test_choose_more_words() {
-        let more_words: Vec<Vec<String>> =
-            vec![vecstrings("purple yellow"), vecstrings("sausages")];
+        let more_words = vec![vec_strings("purple yellow"), vec_strings("sausages")];
 
-        let expected2 = vecstrings("purple-sausages yellow-sausages");
-        let expected3: Vec<String> = vec![
+        let expected2 = vec_strs("purple-sausages yellow-sausages");
+        let expected3 = vec![
             "purple-sausages-purple",
             "yellow-sausages-purple",
             "purple-sausages-yellow",
             "yellow-sausages-yellow",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+        ];
 
         let w = Wordlist::new(2, more_words.clone());
         for _ in 0..20 {
-            assert!(expected2.contains(&w.choose_words()));
+            assert!(expected2.contains(&w.choose_words().as_ref()));
         }
 
         let w = Wordlist::new(3, more_words);
         for _ in 0..20 {
-            assert!(expected3.contains(&w.choose_words()));
+            assert!(expected3.contains(&w.choose_words().as_ref()));
         }
     }
 
     #[test]
-    fn test_default_completions() {
-        let w = default_wordlist(2);
-        let c = w.get_completions("ar");
-        assert_eq!(c.len(), 2);
-        assert!(c.contains(&String::from("article-")));
-        assert!(c.contains(&String::from("armistice-")));
+    #[cfg(feature = "fuzzy-complete")]
+    fn test_wormhole_code_fuzzy_completions() {
+        let list = Wordlist::default_wordlist(2);
 
-        let c = w.get_completions("armis");
-        assert_eq!(c.len(), 1);
-        assert!(c.contains(&String::from("armistice-")));
+        assert_eq!(list.get_completions("22"), Vec::<String>::new());
+        assert_eq!(list.get_completions("22-"), Vec::<String>::new());
 
-        let c = w.get_completions("armistice-");
-        assert_eq!(c.len(), 256);
+        // Invalid wormhole code check
+        assert_eq!(list.get_completions("trj"), Vec::<String>::new());
 
-        let c = w.get_completions("armistice-ba");
         assert_eq!(
-            c,
-            vec![
-                "armistice-baboon",
-                "armistice-backfield",
-                "armistice-backward",
-                "armistice-banjo",
-            ]
+            list.get_completions("22-chisel"),
+            ["22-chisel", "22-chairlift", "22-christmas"]
         );
 
-        let w = default_wordlist(3);
-        let c = w.get_completions("armistice-ba");
         assert_eq!(
-            c,
-            vec![
-                "armistice-baboon-",
-                "armistice-backfield-",
-                "armistice-backward-",
-                "armistice-banjo-",
-            ]
+            list.get_completions("22-chle"),
+            ["22-chisel", "22-chatter", "22-checkup"]
         );
 
-        let w = default_wordlist(4);
-        let c = w.get_completions("armistice-baboon");
-        assert_eq!(c, vec!["armistice-baboon-"]);
+        assert_eq!(list.get_completions("22-chisel-tba"), ["22-chisel-tobacco"]);
+    }
+
+    #[test]
+    #[cfg(feature = "fuzzy-complete")]
+    fn test_completion_fuzzy() {
+        let wl = Wordlist::default_wordlist(2);
+        let list = wl.get_wordlist("22-");
+
+        assert_eq!(wl.fuzzy_complete("chck", list), ["checkup", "choking"]);
+        assert_eq!(wl.fuzzy_complete("checkp", list), ["checkup"]);
+        assert_eq!(
+            wl.fuzzy_complete("checkup", list),
+            ["checkup", "lockup", "cleanup"]
+        );
+    }
+
+    #[test]
+    fn test_completion_normal() {
+        let wl = Wordlist::default_wordlist(2);
+        let list = wl.get_wordlist("22-");
+
+        assert_eq!(wl.normal_complete("che", list), ["checkup"]);
+    }
+
+    #[test]
+    fn test_full_wormhole_completion() {
+        let wl = Wordlist::default_wordlist(2);
+
+        assert_eq!(wl.get_completions("22-chec").first().unwrap(), "22-checkup");
+        assert_eq!(
+            wl.get_completions("22-checkup-t").first().unwrap(),
+            "22-checkup-tobacco"
+        );
     }
 }

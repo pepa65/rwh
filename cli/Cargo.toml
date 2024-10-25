@@ -27,13 +27,13 @@ async-std = { workspace = true, features = ["attributes", "unstable"] }
 rand = { workspace = true }
 
 # CLI specific dependencies
-magic-wormhole = { path = "..", version = "0.7", default-features = false }
-clap = { workspace = true, features = ["derive"] }
+magic-wormhole = { path = "..", version = "0.7", features = ["all", "entropy"] }
+clap = { workspace = true, features = ["cargo", "derive", "help"] }
 clap_complete = { workspace = true }
 env_logger = { workspace = true }
 console = { workspace = true }
 indicatif = { workspace = true }
-dialoguer = { workspace = true }
+dialoguer = { workspace = true, features = ["completion"] }
 color-eyre = { workspace = true }
 number_prefix = { workspace = true }
 ctrlc = { workspace = true }
@@ -46,7 +46,8 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 trycmd = { workspace = true }
 
 [features]
-clipboard = ["dep:arboard"]
+#clipboard = ["dep:arboard"]
+clipboard = []
 # TLS implementations for websocket connections via async-tungstenite
 # required for optional wss connection to the mailbox server
 tls = ["magic-wormhole/tls"]
