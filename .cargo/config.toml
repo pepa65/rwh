@@ -1,9 +1,26 @@
 [alias]
-rel = "build --release --target=x86_64-unknown-linux-gnu"
+rel = "build --release"
+inst = "install --path ."
+clip = "clippy --release"
 zig = "zigbuild --release --target=x86_64-unknown-linux-musl"
+
+[test]
+target = "x86_64-unknown-linux-musl"
+
+[build]
+target = "x86_64-unknown-linux-musl"
 
 [target.x86_64-unknown-linux-gnu]
 rustflags = "-Ctarget-feature=+crt-static"
 
 [target.x86_64-unknown-linux-musl]
 rustflags = "-Ctarget-feature=+crt-static"
+
+[install]
+target = "x86_64-unknown-linux-musl"
+
+[publish]
+pub = "publish --target=x86_64-unknown-linux-musl"
+
+[clippy]
+target = "x86_64-unknown-linux-musl"
