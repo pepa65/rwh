@@ -14,13 +14,11 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Read MSRV from workspace manifest
         id: read_msrv
+        shell: bash
         run: |
-          cargo metadata --no-deps --format-version=1 \
-          | jq -r 'first(.packages[]).rust_version' \
-          | sed -E 's/^1\.([0-9]{2})$/1\.\1\.0/' \
-          | xargs -0 printf "msrv=%s" \
-          | tee /dev/stderr \
-          >> "$GITHUB_OUTPUT"
+          msrv="$(cargo metadata --no-deps --format-version=1 |
+            jq -r 'first(.packages[]).rust_version')"
+          echo "msrv=$msrv" | tee /dev/stderr >> "$GITHUB_OUTPUT"
     outputs:
       msrv: ${{ steps.read_msrv.outputs.msrv }}
 
@@ -119,20 +117,20 @@ jobs:
           path: target
           key: ${{ runner.os }}-test-build-target-${{ matrix.rust }}
       - name: build library (no default features)
-        run: cargo build -p magic-wormhole --target ${{ matrix.target }} --no-default-features
+        run: cargo build -p rwh --target ${{ matrix.target }} --no-default-features
       - name: build library (features=transit)
-        run: cargo build -p magic-wormhole --target ${{ matrix.target }} --no-default-features --features=transit
+        run: cargo build -p rwh --target ${{ matrix.target }} --no-default-features --features=transit
       - name: build library (features=transfer)
-        run: cargo build -p magic-wormhole --target ${{ matrix.target }} --no-default-features --features=transfer
+        run: cargo build -p rwh --target ${{ matrix.target }} --no-default-features --features=transfer
       - name: build library (features=forwarding)
         if: ${{ matrix.os != 'WASM' }}
-        run: cargo build -p magic-wormhole --target ${{ matrix.target }} --no-default-features --features=forwarding
+        run: cargo build -p rwh --target ${{ matrix.target }} --no-default-features --features=forwarding
       - name: build CLI
         if: ${{ matrix.os != 'WASM' }}
-        run: cargo build -p magic-wormhole-cli --target ${{ matrix.target }} --features=all
+        run: cargo build -p rwh --target ${{ matrix.target }} --features=all
       - name: build WASM
         if: ${{ matrix.os == 'WASM' }}
-        run: cargo build -p magic-wormhole --target wasm32-unknown-unknown --no-default-features --features ${{ matrix.features }}
+        run: cargo build -p rwh --target wasm32-unknown-unknown --no-default-features --features ${{ matrix.features }}
       - name: test
         uses: nick-fields/retry@v3
         with:
@@ -168,7 +166,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        targets: ${{ matrix.target }}
+        with:
+          targets: ${{ matrix.target }}
       - name: Cache ~/.cargo
         uses: actions/cache@v4
         with:
@@ -180,7 +179,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-test-build-target-stable
       - name: Build
-        run: cargo build -p magic-wormhole-cli --target ${{ matrix.target }} --bins --locked --release
+        run: cargo build -p rwh --target ${{ matrix.target }} --bins --locked --release
       - name: Tar binaries
         run: |
           pushd "target/${{ matrix.target }}/release/"
