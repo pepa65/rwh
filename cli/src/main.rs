@@ -90,11 +90,11 @@ struct CommonLeaderArgs {
     #[arg(long, value_name = "CODE")]
     code: Option<String>,
     /// Length of code (in bytes/words)
-    #[arg(short = 'c', long, value_name = "NUMWORDS", default_value = "2")]
+    #[arg(short = 'c', long, value_name = "NUMWORDS", default_value = "4")]
     code_length: usize,
-    /// Suppress QR code generation from send link
-    #[arg(long)]
-    no_qr: bool,
+    /// QR code generation from send link
+    #[arg(short = 'q', long)]
+    qr: bool,
 }
 
 // receive
@@ -181,7 +181,7 @@ enum ForwardCommand {
 #[derive(Debug, Subcommand)]
 enum WormholeCommand {
     /// Send a file or a folder
-    #[command(visible_alias = "tx")]
+    #[command(visible_alias = "s")]
     Send {
         #[clap(flatten)]
         common: CommonArgs,
@@ -191,10 +191,10 @@ enum WormholeCommand {
         common_send: CommonSenderArgs,
     },
     /// Receive a file or a folder
-    #[command(visible_alias = "rx")]
+    #[command(visible_alias = "r")]
     Receive {
         /// Accept file transfer without asking for confirmation
-        #[arg(long, visible_alias = "yes")]
+        #[arg(short = 'y', long, visible_alias = "yes")]
         noconfirm: bool,
         #[command(flatten)]
         common: CommonArgs,
@@ -219,7 +219,7 @@ enum WormholeCommand {
         #[arg(short = 'n', long, value_name = "N", default_value = "30")]
         tries: u64,
         /// Automatically stop providing the file after a certain amount of time.
-        #[arg(long, value_name = "MINUTES", default_value = "60")]
+        #[arg(short = 'm', long, value_name = "MINUTES", default_value = "60")]
         timeout: u64,
         #[command(flatten)]
         common: CommonArgs,
@@ -244,13 +244,16 @@ enum WormholeCommand {
 #[derive(Debug, Parser)]
 #[command(
     version,
-    author,
     about,
-    name = "wormhole-rs",
     arg_required_else_help = true,
     disable_help_subcommand = true,
     propagate_version = true,
-    after_help = "Run a subcommand with `--help` to know how it's used."
+    after_help = "Run a subcommand with `--help` to know how it's used.",
+    help_template = "\
+{name} {version} - {about}
+{usage-heading} {usage}
+{all-args}
+{after-help}",
 )]
 struct WormholeCli {
     /// Enable logging to stdout, for debugging purposes
@@ -316,7 +319,7 @@ async fn async_main() -> eyre::Result<()> {
                 CommonLeaderArgs {
                     code,
                     code_length,
-                    no_qr,
+                    qr,
                 },
             common_send: CommonSenderArgs { file_name, files },
             ..
@@ -330,7 +333,7 @@ async fn async_main() -> eyre::Result<()> {
                     common,
                     code,
                     Some(code_length),
-                    no_qr,
+                    qr,
                     true,
                     transfer::APP_CONFIG,
                     Some(&sender_print_code),
@@ -353,7 +356,7 @@ async fn async_main() -> eyre::Result<()> {
                 CommonLeaderArgs {
                     code,
                     code_length,
-                    no_qr,
+                    qr,
                 },
             common_send: CommonSenderArgs { file_name, files },
             ..
@@ -365,7 +368,7 @@ async fn async_main() -> eyre::Result<()> {
                     common,
                     code,
                     Some(code_length),
-                    no_qr,
+                    qr,
                     true,
                     transfer::APP_CONFIG,
                     Some(&sender_print_code),
@@ -431,7 +434,7 @@ async fn async_main() -> eyre::Result<()> {
                 CommonLeaderArgs {
                     code,
                     code_length,
-                    no_qr,
+                    qr,
                 },
             ..
         }) => {
@@ -485,7 +488,7 @@ async fn async_main() -> eyre::Result<()> {
                     common.clone(),
                     code.clone(),
                     Some(code_length),
-                    no_qr,
+                    qr,
                     true,
                     app_config,
                     Some(&server_print_code),
@@ -602,7 +605,7 @@ async fn parse_and_connect(
     common_args: CommonArgs,
     mut code: Option<String>,
     code_length: Option<usize>,
-    no_qr: bool,
+    qr: bool,
     is_send: bool,
     mut app_config: rwhlib::AppConfig<impl serde::Serialize + Send + Sync + 'static>,
     print_code: Option<&PrintCodeFn>,
@@ -677,7 +680,7 @@ async fn parse_and_connect(
                     term,
                     &code,
                     &uri_rendezvous,
-                    no_qr,
+                    qr,
                 )?;
             }
             MailboxConnection::connect(app_config, code, true).await?
@@ -708,7 +711,7 @@ async fn parse_and_connect(
                     term,
                     mailbox_connection.code(),
                     &uri_rendezvous,
-                    no_qr,
+                    qr,
                 )?;
             }
             mailbox_connection
@@ -819,7 +822,7 @@ fn sender_print_code(
     term: &mut Term,
     code: &rwhlib::Code,
     rendezvous_server: &Option<url::Url>,
-    no_qr: bool,
+    qr: bool,
 ) -> eyre::Result<()> {
     let uri = rwhlib::uri::WormholeTransferUri {
         code: code.clone(),
@@ -831,34 +834,32 @@ fn sender_print_code(
     if cfg!(feature = "clipboard") {
         writeln!(
             term,
-            "\nThis wormhole's code is: {} (it has been copied to your clipboard)",
+            "\nCode: {} (also copied to your clipboard)",
             style(&code).bold()
         )?;
     } else {
-        writeln!(term, "\nThis wormhole's code is: {}", style(&code).bold())?;
-    }
+        writeln!(term, "\nCode: {}", style(&code).bold())?;
+    };
 
-    writeln!(
-        term,
-        "This is equivalent to the following link: \u{001B}]8;;{}\u{001B}\\{}\u{001B}]8;;\u{001B}\\",
-        uri, uri
-    )?;
-    if no_qr {
+    if !qr {
         tracing::debug!("QR option not enabled. Skipping QR code generation.");
     } else {
+        writeln!(term, "")?;
         let qr_code = qr2term::generate_qr_string(&uri)
             .context("Failed to generate QR code for send link")?;
         writeln!(term, "{qr_code}")?;
-    }
+    };
 
     writeln!(
         term,
-        "On the other side, open the link or enter that code into a Magic Wormhole client."
+        "Link: \u{001B}]8;;{}\u{001B}\\{}\u{001B}]8;;\u{001B}\\",
+        uri, uri
     )?;
+
     writeln!(
         term,
-        "For example: {} {}\n",
-        style("wormhole-rs receive").bold(),
+        "Run on the other side: {} {}\n",
+        style("rwh r").bold(),
         style(&code).bold()
     )?;
     Ok(())
