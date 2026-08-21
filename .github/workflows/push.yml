@@ -51,7 +51,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-clippy-cargo-build-target
       - uses: dtolnay/rust-toolchain@stable
-          components: clippy
+        components: clippy
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets --features all
 

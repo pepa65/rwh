@@ -1,8 +1,8 @@
 [![version](https://img.shields.io/crates/v/rwh.svg)](https://crates.io/crates/rwh)
-[![build](https://github.com/pepa65/rwh/actions/workflows/push.yml/badge.svg)](https://github.com/pepa65/eqr/actions/workflows/push.yml)
+[![build](https://github.com/pepa65/rwh/actions/workflows/push.yml/badge.svg)](https://github.com/pepa65/rwh/actions/workflows/push.yml)
 [![dependencies](https://deps.rs/repo/github/pepa65/rwh/status.svg)](https://deps.rs/repo/github/pepa65/rwh)
 [![docs](https://img.shields.io/badge/docs-rwh-blue.svg)](https://docs.rs/crate/rwh/latest)
-[![license](https://img.shields.io/badge/License-EUPLv1.2-blue.svg)](https://github.com/pepa65/eqr/blob/main/LICENSE)
+[![license](https://img.shields.io/badge/License-EUPLv1.2-blue.svg)](https://github.com/pepa65/rwh/blob/main/LICENSE)
 [![downloads](https://img.shields.io/crates/d/rwh.svg)](https://crates.io/crates/rwh)
 
 # rwh 0.9.0
