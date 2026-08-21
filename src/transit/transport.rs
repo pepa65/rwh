@@ -129,8 +129,8 @@ pub(super) async fn tcp_get_external_ip() -> Result<(SocketAddr, TcpStream), Stu
     };
 
     fn get_binding_request() -> Result<Vec<u8>, bytecodec::Error> {
-        use rand::Rng;
-        let random_bytes = rand::thread_rng().r#gen::<[u8; 12]>();
+        use rand::RngExt;
+        let random_bytes = rand::rng().random::<[u8; 12]>();
 
         let mut message: Message<Attribute> = Message::new(
             MessageClass::Request,

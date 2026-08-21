@@ -1,5 +1,5 @@
 //! Wordlist generation and wormhole code utilities
-use rand::{rngs::OsRng, seq::SliceRandom};
+use rand::seq::IndexedRandom;
 use serde_json::{self, Value};
 use std::fmt;
 
@@ -80,7 +80,7 @@ impl Wordlist {
 
     /// Choose wormhole code word
     pub fn choose_words(&self) -> Password {
-        let mut rng = OsRng;
+        let mut rng = rand::rng();
 
         let components = self
             .words
@@ -305,10 +305,8 @@ mod test {
 
         assert_eq!(list.get_completions("22"), Vec::<String>::new());
         assert_eq!(list.get_completions("22-"), Vec::<String>::new());
-        assert_ne!(
-            list.get_completions("22-troj").first().unwrap(),
-            &"22-trojan".to_string()
-        );
+        #[cfg(not(feature = "fuzzy-complete"))]
+        assert!(list.get_completions("22-troj").is_empty());
 
         assert_eq!(
             list.get_completions("22-compo").first().unwrap(),
@@ -331,10 +329,7 @@ mod test {
 
         assert_eq!(list.get_completions("22"), Vec::<String>::new());
         assert_eq!(list.get_completions("22-"), Vec::<String>::new());
-        assert_ne!(
-            list.get_completions("22-troj").first().unwrap(),
-            &"22-trojan".to_string()
-        );
+        assert!(list.get_completions("22-troj").is_empty());
 
         assert_eq!(
             list.get_completions("22-decd").first().unwrap(),

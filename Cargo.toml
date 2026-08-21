@@ -3,19 +3,20 @@ members = [".", "cli"]
 default-members = ["cli"]
 
 [workspace.package]
-version = "0.8.1"
+version = "0.9.0"
 authors = [
-    "Fina Wilke <code@felinira.net>",
-    "piegames <info@piegames.de>",
-    "Brian Warner <warner@lothar.com>",
+	"Fina Wilke <code@felinira.net>",
+	"piegames <info@piegames.de>",
+	"Brian Warner <warner@lothar.com>",
+	"github.com/pepa65",
 ]
-description = "Get things from one computer to another, safely"
+description = "Safe filetransfer"
 keywords = ["magic-wormhole", "wormhole", "file-transfer", "transfer"]
 homepage = "http://magic-wormhole.io/"
-repository = "https://github.com/magic-wormhole/magic-wormhole.rs/tree/main/cli"
+repository = "https://github.com/pepa65/rwh/tree/main/cli"
+documentation = "https://docs.rs/rwh"
 license = "EUPL-1.2"
-
-rust-version = "1.92"
+rust-version = "1.97"
 edition = "2024"
 
 [workspace.dependencies]
@@ -23,7 +24,7 @@ async-process = "2.5.0"
 arboard = "3.6"
 async-channel = "2.5"
 async-trait = "0.1"
-base64 = "0.22.1"
+base64 = "0.23.1"
 bytecodec = "0.5"
 clap = "4"
 clap_complete = "4"
@@ -49,13 +50,13 @@ percent-encoding = "2.1.0"
 qr2term = "0.3.0"
 
 # Depends on the exact version of rand_core used by crypto-common
-rand = "0.8"
+rand = "0.10.2"
 rmp-serde = "1.0.0"
 serde = "1.0.120"
 serde_derive = "1.0.120"
 serde_json = "1.0.61"
-sha-1 = "0.10.0"
-sha2 = "0.11.0"
+sha1 = "0.11"
+sha2 = "0.11"
 smol = "2.0"
 smol-macros = "0.1"
 async-executor = "1.13"
@@ -77,7 +78,7 @@ zxcvbn = "3.1.0"
 wasmtimer = "0.4"
 
 [package]
-name = "magic-wormhole"
+name = "rwhlib"
 categories = ["network-programming", "asynchronous"]
 documentation = "https://docs.rs/magic-wormhole/latest/"
 readme = "README.md"
@@ -89,12 +90,11 @@ keywords.workspace = true
 homepage.workspace = true
 repository.workspace = true
 license.workspace = true
-
 rust-version.workspace = true
 edition.workspace = true
 
 [package.metadata.docs.rs]
-features = ["all"]
+all-features = true
 
 [dependencies]
 serde = { workspace = true, features = ["rc"] }
@@ -102,7 +102,7 @@ serde_json = { workspace = true }
 serde_derive = { workspace = true }
 crypto_secretbox = { workspace = true }
 spake2 = { workspace = true }
-sha-1 = { workspace = true }
+sha1 = { workspace = true }
 sha2 = { workspace = true }
 hkdf = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
@@ -126,7 +126,6 @@ fuzzt = { version = "0.3.1", optional = true }
 
 # Transit dependencies
 
-
 stun_codec = { workspace = true, optional = true }
 bytecodec = { workspace = true, optional = true }
 noise-rust-crypto = { workspace = true, optional = true }
@@ -146,7 +145,7 @@ tar = { workspace = true, optional = true }
 libc = "0.2.101"
 async-executor = { workspace = true }
 async-process = { workspace = true, optional = true }
-async-tungstenite = { version = "0.34", features = ["smol-runtime"] }
+async-tungstenite = { version = "0.35", features = ["smol-runtime"] }
 async-io = { workspace = true }
 async-net = { workspace = true }
 async-fs = { workspace = true }
@@ -160,7 +159,7 @@ if-addrs = { version = "0.15", optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 ws_stream_wasm = "0.7.3"
-getrandom = { version = "0.2.5", features = ["js"] }
+getrandom = { version = "0.4" }
 wasmtimer = { workspace = true }
 
 # for some tests
@@ -176,13 +175,13 @@ wasm-bindgen-test = "0.3"
 [features]
 transfer = ["transit", "dep:tar", "dep:rmp-serde"]
 transit = [
-    "dep:noise-rust-crypto",
-    "dep:noise-protocol",
-    "dep:socket2",
-    "dep:stun_codec",
-    "dep:if-addrs",
-    "dep:bytecodec",
-    "dep:async-trait",
+	"dep:noise-rust-crypto",
+	"dep:noise-protocol",
+	"dep:socket2",
+	"dep:stun_codec",
+	"dep:if-addrs",
+	"dep:bytecodec",
+	"dep:async-trait",
 ]
 forwarding = ["transit", "dep:rmp-serde", "dep:async-process"]
 default = ["transit", "transfer"]
@@ -190,12 +189,11 @@ all = ["default", "forwarding", "fuzzy-complete"]
 
 # TLS implementations for websocket connections via async-tungstenite
 # required for optional wss connection to the mailbox server
-tls = ["async-tungstenite/async-tls"]
 futures-rustls-manual-roots = ["async-tungstenite/futures-rustls-manual-roots"]
 futures-rustls-native-certs = ["async-tungstenite/futures-rustls-native-certs"]
 futures-rustls-platform-verifier = ["async-tungstenite/futures-rustls-platform-verifier"]
 futures-rustls-webpki-roots = ["async-tungstenite/futures-rustls-webpki-roots"]
-native-tls = ["async-tungstenite/smol-native-tls"]
+
 # Enable experimental transfer-v2 support. The protocol is not yet finalized and is subject to change.
 # By enabling this option you are opting out of semver stability.
 experimental-transfer-v2 = []
@@ -203,6 +201,9 @@ experimental = ["experimental-transfer-v2"]
 fuzzy-complete = ["fuzzt"]
 
 [profile.release]
+opt-level = "z"
 overflow-checks = true
-strip = "debuginfo"
-lto = "thin"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -1,5 +1,5 @@
 [package]
-name = "magic-wormhole-cli"
+name = "rwh"
 categories = ["command-line-utilities"]
 
 version.workspace = true
@@ -14,7 +14,7 @@ rust-version.workspace = true
 edition.workspace = true
 
 [[bin]]
-name = "wormhole-rs"
+name = "rwh"
 path = "src/main.rs"
 
 [dependencies]
@@ -28,7 +28,7 @@ rand = { workspace = true }
 smol = { workspace = true }
 
 # CLI specific dependencies
-magic-wormhole = { path = "..", version = "0.8.0-alpha.1", features = ["all"] }
+rwhlib = { path = "..", features = ["futures-rustls-native-certs"] }
 clap = { workspace = true, features = ["cargo", "derive", "help", "env"] }
 clap_complete = { workspace = true }
 env_logger = { workspace = true }
@@ -39,9 +39,7 @@ color-eyre = { workspace = true }
 unit-prefix = { workspace = true }
 ctrlc = { workspace = true }
 qr2term = { workspace = true }
-arboard = { optional = true, workspace = true, features = [
-    "wayland-data-control",
-] } # Wayland by default, fallback to X11.
+arboard = { optional = true, workspace = true, features = ["wayland-data-control"] } # Wayland by default, fallback to X11.
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
@@ -50,17 +48,9 @@ trycmd = { workspace = true }
 
 [features]
 clipboard = ["dep:arboard"]
-# TLS implementations for websocket connections via async-tungstenite
-# required for optional wss connection to the mailbox server
-tls = ["magic-wormhole/tls"]
-futures-rustls-manual-roots = ["magic-wormhole/futures-rustls-manual-roots"]
-futures-rustls-native-certs = ["magic-wormhole/futures-rustls-native-certs"]
-futures-rustls-platform-verifier = ["magic-wormhole/futures-rustls-platform-verifier"]
-futures-rustls-webpki-roots = ["magic-wormhole/futures-rustls-webpki-roots"]
-native-tls = ["magic-wormhole/native-tls"]
 # Enable experimental transfer-v2 support. The protocol is not yet finalized and is subject to change.
-experimental-transfer-v2 = ["magic-wormhole/experimental-transfer-v2"]
+experimental-transfer-v2 = ["rwhlib/experimental-transfer-v2"]
 experimental = ["experimental-transfer-v2"]
 
-default = ["clipboard", "magic-wormhole/default", "magic-wormhole/forwarding"]
-all = ["default", "magic-wormhole/native-tls"]
+default = ["clipboard", "rwhlib/default", "rwhlib/forwarding"]
+all = ["default"]

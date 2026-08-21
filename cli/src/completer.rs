@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use color_eyre::eyre;
 use dialoguer::{Completion, Input};
-use magic_wormhole::Wordlist;
+use rwhlib::Wordlist;
 
 static WORDLIST: LazyLock<Wordlist> = LazyLock::new(|| Wordlist::default_wordlist(2));
 

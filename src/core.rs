@@ -1,3 +1,5 @@
+use rand::Rng;
+
 pub(super) mod key;
 pub mod rendezvous;
 mod server_messages;
@@ -283,12 +285,6 @@ impl Wormhole {
     /// Set up a Wormhole which is the client-client part of the connection setup
     ///
     /// The MailboxConnection already contains a rendezvous server with an opened mailbox.
-    #[cfg_attr(
-        feature = "tls",
-        deprecated(
-            note = "The 'tls' feature depends on the async-tls crate which in turn depends on an old unmaintained version of rustls. If you need websocket TLS support use one of the futures-rustls features."
-        )
-    )]
     pub async fn connect(
         mailbox_connection: MailboxConnection<impl serde::Serialize + Send + Sync + 'static>,
     ) -> Result<Self, WormholeError> {
@@ -581,10 +577,8 @@ pub(crate) struct MySide(EitherSide);
 
 impl MySide {
     pub fn generate() -> MySide {
-        use rand::{RngCore, rngs::OsRng};
-
         let mut bytes: [u8; 5] = [0; 5];
-        OsRng.fill_bytes(&mut bytes);
+        rand::rng().fill_bytes(&mut bytes);
 
         MySide(EitherSide(hex::encode(bytes)))
     }

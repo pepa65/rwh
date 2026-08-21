@@ -1,9 +1,6 @@
 use crate::core::*;
 use crypto_secretbox as secretbox;
-use crypto_secretbox::{
-    KeyInit, XSalsa20Poly1305,
-    aead::{Aead, AeadCore, generic_array::GenericArray},
-};
+use crypto_secretbox::{KeyInit, XSalsa20Poly1305, aead::{Aead, AeadCore, generic_array::GenericArray}};
 use hkdf::Hkdf;
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256, digest::FixedOutput};
@@ -165,9 +162,10 @@ fn encrypt_data_with_nonce(
 }
 
 pub fn encrypt_data(key: &secretbox::Key, plaintext: &[u8]) -> (secretbox::Nonce, Vec<u8>) {
-    let nonce = secretbox::SecretBox::<secretbox::XSalsa20Poly1305>::generate_nonce(
-        &mut rand::thread_rng(),
-    );
+    use rand::RngExt;
+    let mut nonce_bytes = [0u8; 24];
+    rand::rng().fill(&mut nonce_bytes);
+    let nonce = *secretbox::Nonce::from_slice(&nonce_bytes);
     let nonce_and_ciphertext = encrypt_data_with_nonce(key, plaintext, &nonce);
     (nonce, nonce_and_ciphertext)
 }

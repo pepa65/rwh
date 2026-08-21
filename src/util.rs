@@ -40,7 +40,7 @@ pub fn sodium_increment_be(n: &mut [u8]) {
 
 /** Mint a new hashcash token with a given difficulty and resource string. */
 pub fn hashcash(resource: String, bits: u32) -> String {
-    use rand::{Rng, distributions::Standard};
+    use rand::{distr::StandardUniform, RngExt};
     use sha1::{Digest, Sha1};
 
     if bits > 32 {
@@ -53,11 +53,11 @@ pub fn hashcash(resource: String, bits: u32) -> String {
     /* This is the `[year][month][day]` format, but without activating the parser */
     use time::format_description::{Component, FormatItem};
     let format = [
-        FormatItem::Component(Component::Year(
-            time::format_description::modifier::Year::default(),
+        FormatItem::Component(Component::CalendarYearFullStandardRange(
+            time::format_description::modifier::CalendarYearFullStandardRange::default(),
         )),
-        FormatItem::Component(Component::Month(
-            time::format_description::modifier::Month::default(),
+        FormatItem::Component(Component::MonthNumerical(
+            time::format_description::modifier::MonthNumerical::default(),
         )),
         FormatItem::Component(Component::Day(
             time::format_description::modifier::Day::default(),
@@ -75,8 +75,8 @@ pub fn hashcash(resource: String, bits: u32) -> String {
     );
 
     let rand: String = base64_engine.encode(
-        rand::thread_rng()
-            .sample_iter(&Standard)
+        rand::rng()
+            .sample_iter(StandardUniform)
             .take(16)
             .collect::<Vec<u8>>(),
     );

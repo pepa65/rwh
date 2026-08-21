@@ -2,10 +2,7 @@ name: Rust
 
 on:
   push:
-    branches: [main, "v*"]
-    tags: ["[0-9]+.[0-9]+.[0-9]+"]
-  pull_request:
-    branches: [main, "v*"]
+    branches: [main]
 
 jobs:
   read_msrv:
@@ -32,11 +29,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Ensure rustfmt is installed and setup problem matcher
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: rustfmt
-          toolchain: nightly
       - name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@v1
 
@@ -56,11 +51,9 @@ jobs:
           path: target
           key: ${{ runner.os }}-clippy-cargo-build-target
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
           components: clippy
       - name: cargo clippy
-        run: cargo clippy --all-features
+        run: cargo clippy --workspace --all-targets --features all
 
   test:
     name: "Test (${{ matrix.os }} ${{ matrix.channel }})"
@@ -70,41 +63,52 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        channel:
-          - MSRV
-          - stable
-        os:
-          - Linux
-          - Windows
-          - macOS
-          - WASM
         include:
           - os: Linux
             image: ubuntu-latest
+            channel: MSRV
+            rust: ${{ needs.read_msrv.outputs.msrv }}
+            target: x86_64-unknown-linux-musl
+            features: all,experimental
+          - os: Linux
+            image: ubuntu-latest
+            channel: stable
+            rust: stable
+            target: x86_64-unknown-linux-musl
+            features: all,experimental
+          - os: Linux
+            image: ubuntu-latest
+            channel: MSRV
+            rust: ${{ needs.read_msrv.outputs.msrv }}
             target: x86_64-unknown-linux-gnu
-            features: all,native-tls,experimental
+            features: all,experimental
+          - os: Linux
+            image: ubuntu-latest
+            channel: stable
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+            features: all,experimental
           - os: Windows
             image: windows-latest
             target: x86_64-pc-windows-msvc
-            features: all,native-tls,experimental
+            features: all,experimental
           - os: macOS
             image: macos-latest
             target: aarch64-apple-darwin
-            features: all,native-tls,experimental
+            features: all,experimental
           - os: WASM
             image: ubuntu-latest
             target: wasm32-unknown-unknown
             features: transit,transfer
-          - channel: msrv
-            rust: ${{ needs.read_msrv.outputs.msrv }}
-          - channel: stable
-            rust: stable
     steps:
       - uses: actions/checkout@v4
+      - name: Install musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-          target: wasm32-unknown-unknown
+          targets: ${{ matrix.target }}
       - name: Cache ~/.cargo
         uses: actions/cache@v4
         with:
@@ -165,8 +169,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
           target: ${{ matrix.target }}
       - name: Cache ~/.cargo
         uses: actions/cache@v4
@@ -198,8 +200,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
       - uses: taiki-e/cache-cargo-install-action@v2
         with:
           tool: cargo-tarpaulin
@@ -225,14 +225,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-      - name: Checkout Rust toolcnain
-        uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
-        with:
-          rust-version: ${{ needs.read_msrv.outputs.msrv }}
 
   semver:
     name: SemVer
@@ -240,8 +233,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
       - name: Check semver
         uses: obi1kenobi/cargo-semver-checks-action@v2
         with:

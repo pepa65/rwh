@@ -283,21 +283,7 @@ async fn test_file_rust2rust() {
             }
             let wormhole = crate::Wormhole::connect(mailbox).await?;
 
-            // Hacky v1-compat conversion for now
-            let mut answer = (answer.into_iter_files().next().unwrap().1.content)(false).await?;
-
-            /*let transfer::ReceiveRequest::V1(req) = transfer::request(
-                wormhole,
-                default_relay_hints(),
-                magic_wormhole::transit::Abilities::ALL,
-                futures::future::pending(),
-            )
-            .await?
-            .unwrap() else {
-                panic!("v2 should be disabled for now")
-            };*/
-
-            let req = transfer::request_file(
+            let req = transfer::request(
                 wormhole,
                 default_relay_hints(),
                 magic_wormhole::transit::Abilities::ALL,
@@ -309,7 +295,7 @@ async fn test_file_rust2rust() {
             req.accept(
                 &log_transit_connection,
                 |_received, _total| {},
-                &mut answer,
+                answer,
                 futures::future::pending(),
             )
             .await?;
@@ -414,7 +400,7 @@ async fn test_send_many() {
         .unwrap();
         tracing::info!("Got key: {}", &wormhole.key);
 
-        let req = transfer::request_file(
+        let req = transfer::request(
             wormhole,
             default_relay_hints(),
             magic_wormhole::transit::Abilities::ALL,
@@ -424,22 +410,10 @@ async fn test_send_many() {
         .unwrap()
         .unwrap();
 
-        // Hacky v1-compat conversion for now
-        let mut answer = (gen_accept()
-            .await
-            .unwrap()
-            .into_iter_files()
-            .next()
-            .unwrap()
-            .1
-            .content)(false)
-        .await
-        .unwrap();
-
         req.accept(
             &log_transit_connection,
             |_, _| {},
-            &mut answer,
+            gen_accept().await.unwrap(),
             futures::future::pending(),
         )
         .await

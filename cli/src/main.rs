@@ -18,7 +18,7 @@ use completer::enter_code;
 use console::{Term, style};
 use futures::{Future, future::Either};
 use indicatif::{MultiProgress, ProgressBar};
-use magic_wormhole::{
+use rwhlib::{
     MailboxConnection, ParseCodeError, ParsePasswordError, Wormhole, forwarding, transfer,
     transit::{self, ConnectionType, TransitInfo},
 };
@@ -280,12 +280,6 @@ fn main() -> eyre::Result<()> {
     smol::block_on(async_main())
 }
 
-#[cfg_attr(
-    feature = "tls",
-    deprecated(
-        note = "The 'tls' feature depends on the async-tls crate which in turn depends on an old unmaintained version of rustls. If you need websocket TLS support use one of the futures-rustls features."
-    )
-)]
 async fn async_main() -> eyre::Result<()> {
     color_eyre::install()?;
 
@@ -302,7 +296,7 @@ async fn async_main() -> eyre::Result<()> {
         tracing_subscriber::fmt()
             .with_max_level(tracing::Level::TRACE)
             .with_env_filter(EnvFilter::new(
-                "wormhole_rs=debug,magic_wormhole::core=trace,mio=debug,ws=error",
+                "wormhole_rs=debug,rwhlib::core=trace,mio=debug,ws=error",
             ))
             .with_target(false)
             .init();
@@ -594,7 +588,7 @@ fn parse_transit_args(args: &CommonArgs) -> transit::Abilities {
 }
 
 type PrintCodeFn =
-    dyn Fn(&mut Term, &magic_wormhole::Code, &Option<url::Url>, bool) -> eyre::Result<()>;
+    dyn Fn(&mut Term, &rwhlib::Code, &Option<url::Url>, bool) -> eyre::Result<()>;
 
 /**
  * Parse the necessary command line arguments to establish an initial server connection.
@@ -610,9 +604,9 @@ async fn parse_and_connect(
     code_length: Option<usize>,
     no_qr: bool,
     is_send: bool,
-    mut app_config: magic_wormhole::AppConfig<impl serde::Serialize + Send + Sync + 'static>,
+    mut app_config: rwhlib::AppConfig<impl serde::Serialize + Send + Sync + 'static>,
     print_code: Option<&PrintCodeFn>,
-) -> eyre::Result<(Wormhole, magic_wormhole::Code, Vec<transit::RelayHint>)> {
+) -> eyre::Result<(Wormhole, rwhlib::Code, Vec<transit::RelayHint>)> {
     // TODO handle relay servers with multiple endpoints better
     let mut relay_hints: Vec<transit::RelayHint> = common_args
         .relay_server
@@ -622,7 +616,7 @@ async fn parse_and_connect(
     if relay_hints.is_empty() {
         relay_hints.push(transit::RelayHint::from_urls(
             None,
-            [magic_wormhole::transit::DEFAULT_RELAY_SERVER
+            [rwhlib::transit::DEFAULT_RELAY_SERVER
                 .parse()
                 .unwrap()],
         )?)
@@ -637,8 +631,8 @@ async fn parse_and_connect(
     // We accept a little breakage in non-interactive use, because this is a security issue
     // Split the nameplate parsing from the code parsing to ensure we allow non-integer nameplates
     // until the next breaking release
-    let res: Option<Result<magic_wormhole::Code, _>> = code.as_ref().map(|c| c.parse());
-    let code: Option<magic_wormhole::Code> = match res {
+    let res: Option<Result<rwhlib::Code, _>> = code.as_ref().map(|c| c.parse());
+    let code: Option<rwhlib::Code> = match res {
         Some(Ok(code)) => Some(code),
         // Check if an interactive terminal is connected
         Some(Err(
@@ -660,9 +654,9 @@ async fn parse_and_connect(
             code.map(|c| {
                 let (nameplate, password) = c.split_once("-").unwrap();
                 unsafe {
-                    magic_wormhole::Code::from_components(
-                        magic_wormhole::Nameplate::new_unchecked(nameplate),
-                        magic_wormhole::Password::new_unchecked(password),
+                    rwhlib::Code::from_components(
+                        rwhlib::Nameplate::new_unchecked(nameplate),
+                        rwhlib::Password::new_unchecked(password),
                     )
                 }
             })
@@ -823,11 +817,11 @@ fn print_welcome(term: &mut Term, welcome: Option<&str>) -> eyre::Result<()> {
 // For file transfer
 fn sender_print_code(
     term: &mut Term,
-    code: &magic_wormhole::Code,
+    code: &rwhlib::Code,
     rendezvous_server: &Option<url::Url>,
     no_qr: bool,
 ) -> eyre::Result<()> {
-    let uri = magic_wormhole::uri::WormholeTransferUri {
+    let uri = rwhlib::uri::WormholeTransferUri {
         code: code.clone(),
         rendezvous_server: rendezvous_server.clone(),
         is_leader: false,
@@ -847,7 +841,7 @@ fn sender_print_code(
     writeln!(
         term,
         "This is equivalent to the following link: \u{001B}]8;;{}\u{001B}\\{}\u{001B}]8;;\u{001B}\\",
-        &uri, &uri
+        uri, uri
     )?;
     if no_qr {
         tracing::debug!("QR option not enabled. Skipping QR code generation.");
@@ -873,7 +867,7 @@ fn sender_print_code(
 // For port forwarding
 fn server_print_code(
     term: &mut Term,
-    code: &magic_wormhole::Code,
+    code: &rwhlib::Code,
     _: &Option<url::Url>,
     _qr: bool,
 ) -> eyre::Result<()> {
@@ -925,7 +919,7 @@ async fn send(
 
 async fn send_many(
     relay_hints: Vec<transit::RelayHint>,
-    code: &magic_wormhole::Code,
+    code: &rwhlib::Code,
     files: Vec<PathBuf>,
     file_name: Option<String>,
     max_tries: u64,

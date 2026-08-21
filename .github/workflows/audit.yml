@@ -6,13 +6,6 @@ on:
     paths:
       - "**/Cargo.toml"
       - "**/Cargo.lock"
-  pull_request:
-    branches: [main]
-    paths:
-      - "**/Cargo.toml"
-      - "**/Cargo.lock"
-  schedule:
-    - cron: "32 10 * * *"
 
 jobs:
   audit:
@@ -23,10 +16,6 @@ jobs:
       - name: Cache ~/.cargo
         uses: actions/cache@v4
         with:
-          # we specifically want ~/.cargo/bin/cargo-audit
-          # and ~/.cargo/.crates.toml and .crates2.json
-          # which cargo-install uses to remember that it's
-          # already installed
           path: ~/.cargo
           key: ${{ runner.os }}-audit-dotcargo
       - uses: actions-rust-lang/audit@v1

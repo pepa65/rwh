@@ -593,6 +593,7 @@ where
  */
 #[must_use]
 #[cfg(feature = "experimental-transfer-v2")]
+#[allow(clippy::large_enum_variant)]
 pub enum ReceiveRequest {
     /// A protocol version 1 receive request
     V1(ReceiveRequestV1),
@@ -603,7 +604,7 @@ pub enum ReceiveRequest {
 #[cfg(feature = "experimental-transfer-v2")]
 impl ReceiveRequest {
     /// Accept this receive request
-    pub async fn accept<F, G, W>(
+    pub async fn accept<F, G>(
         self,
         transit_handler: G,
         progress_handler: F,
@@ -613,7 +614,6 @@ impl ReceiveRequest {
     where
         F: FnMut(u64, u64) + 'static,
         G: FnOnce(transit::TransitInfo),
-        W: AsyncWrite + Unpin,
     {
         match self {
             ReceiveRequest::V1(request) => {
