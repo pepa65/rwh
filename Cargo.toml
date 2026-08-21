@@ -10,7 +10,7 @@ authors = [
 	"Brian Warner <warner@lothar.com>",
 	"github.com/pepa65",
 ]
-description = "Safe filetransfer"
+description = "Safe filetransfer through magic-wormhole"
 keywords = ["magic-wormhole", "wormhole", "file-transfer", "transfer"]
 homepage = "http://magic-wormhole.io/"
 repository = "https://github.com/pepa65/rwh/tree/main/cli"
