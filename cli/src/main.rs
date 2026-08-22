@@ -5,7 +5,7 @@ mod util;
 use std::{
     io::IsTerminal,
     pin::Pin,
-    sync::{LazyLock, atomic::AtomicBool},
+    sync::{LazyLock, OnceLock, atomic::AtomicBool},
     time::{Duration, Instant},
 };
 
@@ -28,24 +28,23 @@ use tracing_subscriber::EnvFilter;
 #[cfg(feature = "clipboard")]
 use arboard::Clipboard;
 
-/// This returns a future which will fire once Ctrl+C is pressed.
-///
-/// The first Ctrl+C press handles the event gracefully. Pressing it a second time will abort the process immediately.
+/// This returns a future which will fire once Ctrl+C is pressed
+/// (The first press is handled gracefully, the second will immediately abort)
 fn ctrlc_handler() -> Pin<Box<impl Future<Output = ()> + 'static>> {
     static HAS_NOTIFIED: AtomicBool = AtomicBool::new(false);
 
-    /* Register the handler lazily when requested for the first time */
+    // Lazily register the handler (when requested for the first time)
     static RECEIVER: LazyLock<async_channel::Receiver<()>> = LazyLock::new(|| {
         let (s, ctrl_c) = async_channel::unbounded();
 
         let handler = move || {
             smol::block_on(async {
                 if HAS_NOTIFIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                    /* Second signal. Exit */
+                    // Second signal: exit
                     tracing::debug!("Exiting immediately due to Ctrl+C double press");
                     std::process::exit(130);
                 } else {
-                    /* First signal. */
+                    // First signal
                     tracing::info!("Got Ctrl-C event. Press again to exit immediately");
                     s.try_send(()).ok();
                 }
@@ -69,8 +68,7 @@ fn ctrlc_handler() -> Pin<Box<impl Future<Output = ()> + 'static>> {
 // send, send-many
 #[derive(Debug, Args)]
 struct CommonSenderArgs {
-    /// Suggest a different name to the receiver to keep the file's actual name secret.
-    /// Not allowed when sending more than one file.
+    /// Suggest a different file name to the receiver (only for 1 file)
     #[arg(long = "rename", visible_alias = "name", value_name = "FILE_NAME")]
     file_name: Option<String>,
     #[arg(
@@ -89,10 +87,10 @@ struct CommonLeaderArgs {
     /// Enter a code instead of generating one automatically
     #[arg(long, value_name = "CODE")]
     code: Option<String>,
-    /// Length of code (in bytes/words)
+    /// Length of code [in words, or bytes for entered code]
     #[arg(short = 'c', long, value_name = "NUMWORDS", default_value = "4")]
     code_length: usize,
-    /// QR code generation from send link
+    /// Show QR code of transfer link
     #[arg(short = 'q', long)]
     qr: bool,
 }
@@ -100,7 +98,7 @@ struct CommonLeaderArgs {
 // receive
 #[derive(Debug, Args)]
 struct CommonReceiverArgs {
-    /// Store transferred file or folder in the specified directory. Defaults to $PWD.
+    /// Directory where transferred file/folder is put [default: current directory]
     #[arg(long = "out-dir", value_name = "PATH", default_value = ".", value_hint = clap::ValueHint::DirPath)]
     file_path: PathBuf,
 }
@@ -108,15 +106,15 @@ struct CommonReceiverArgs {
 // receive, connect
 #[derive(Debug, Args)]
 struct CommonFollowerArgs {
-    /// Provide the code now rather than typing it interactively
+    /// Provide the code on the command line
     #[arg(value_name = "CODE")]
     code: Option<String>,
 }
 
-// send, send-mane, receive, serve, connect
+// send, send-many, receive, serve, connect
 #[derive(Debug, Clone, Args)]
 struct CommonArgs {
-    /// Use a custom relay server (specify multiple times for multiple relays)
+    /// Use custom relay server [multiple time use allowed]
     #[arg(
         long,
         visible_alias = "relay",
@@ -126,13 +124,13 @@ struct CommonArgs {
         env = "WORMHOLE_RELAY_URL",
     )]
     relay_server: Vec<url::Url>,
-    /// Use a custom rendezvous server. Both sides need to use the same value in order to find each other.
+    /// Use a custom rendezvous server (both sides need to use the same!)
     #[arg(long, value_name = "ws://example.org", value_hint = clap::ValueHint::Url, env = "WORMHOLE_MAILBOX_URL")]
     rendezvous_server: Option<url::Url>,
-    /// Disable the relay server support and force a direct connection.
+    /// Disable the relay server support (forces a direct connection!)
     #[arg(long)]
     force_direct: bool,
-    /// Always route traffic over a relay server. This hides your IP address from the peer (but not from the server operators. Use Tor for that).
+    /// Always route traffic over a relay server (hides the IP address from the peer but not from the server operators - use Tor for that)
     #[arg(long, conflicts_with = "force_direct")]
     force_relay: bool,
 }
@@ -146,7 +144,7 @@ enum ForwardCommand {
         alias = "server", /* Muscle memory <3 */
     )]
     Serve {
-        /// List of ports to open up. You can optionally specify a domain/address to forward remote ports
+        /// List of ports to open (optionally specify a domain/address to forward remote ports)
         #[arg(value_name = "[DOMAIN:]PORT", required = true, action = clap::ArgAction::Append, value_hint = clap::ValueHint::Hostname)]
         targets: Vec<String>,
         #[command(flatten)]
@@ -157,7 +155,7 @@ enum ForwardCommand {
     /// Connect to some ports forwarded to you
     #[command()]
     Connect {
-        /// Bind to specific ports instead of taking random free high ports. Can be provided multiple times.
+        /// Bind to specific ports instead of taking random free high ports (multiple use allowed)
         #[arg(
             short = 'p',
             long = "port",
@@ -165,10 +163,10 @@ enum ForwardCommand {
             value_name = "PORT"
         )]
         ports: Vec<u16>,
-        /// Bind to a specific address to accept the forwarding. Depending on your system and firewall, this may make the forwarded ports accessible from the outside.
+        /// Bind to a specific address to accept the forwarding
         #[arg(long = "bind", value_name = "ADDRESS", default_value = "::", value_hint = clap::ValueHint::Other)]
         bind_address: std::net::IpAddr,
-        /// Accept the forwarding without asking for confirmation
+        /// Accept the forwarding without confirmation
         #[arg(long, visible_alias = "yes")]
         noconfirm: bool,
         #[command(flatten)]
@@ -180,7 +178,7 @@ enum ForwardCommand {
 
 #[derive(Debug, Subcommand)]
 enum WormholeCommand {
-    /// Send a file or a folder
+    /// Send a file/folder
     #[command(visible_alias = "s")]
     Send {
         #[clap(flatten)]
@@ -190,10 +188,10 @@ enum WormholeCommand {
         #[clap(flatten)]
         common_send: CommonSenderArgs,
     },
-    /// Receive a file or a folder
+    /// Receive a file/folder
     #[command(visible_alias = "r")]
     Receive {
-        /// Accept file transfer without asking for confirmation
+        /// Accept the transfer without confirmation
         #[arg(short = 'y', long, visible_alias = "yes")]
         noconfirm: bool,
         #[command(flatten)]
@@ -231,7 +229,7 @@ enum WormholeCommand {
     /// Forward ports from one machine to another
     #[command(subcommand)]
     Forward(ForwardCommand),
-    /// Generate shell completions for the wormhole CLI
+    /// Generate shell completions for rwh
     #[command(hide = true)]
     Completion {
         /// The shell type to generate completions for (bash, elvish, powershell, zsh)
@@ -252,8 +250,7 @@ enum WormholeCommand {
     help_template = "\
 {name} {version} - {about}
 {usage-heading} {usage}
-{all-args}
-{after-help}",
+{all-args}{after-help}",
 )]
 struct WormholeCli {
     /// Enable logging to stdout, for debugging purposes
@@ -278,6 +275,7 @@ struct WormholeCli {
     )]
     no_color: bool,
 }
+static NO_COLOR: OnceLock<bool> = OnceLock::new();
 
 fn main() -> eyre::Result<()> {
     smol::block_on(async_main())
@@ -287,19 +285,16 @@ async fn async_main() -> eyre::Result<()> {
     color_eyre::install()?;
 
     let app = WormholeCli::parse();
+    NO_COLOR.set(app.no_color).expect("");
 
     let mut term = Term::stdout();
 
-    // Set NO_COLOR environment variable if --no-color flag is used
-    if app.no_color {
-        unsafe { std::env::set_var("NO_COLOR", "1") };
-    }
 
     if app.log {
         tracing_subscriber::fmt()
             .with_max_level(tracing::Level::TRACE)
             .with_env_filter(EnvFilter::new(
-                "wormhole_rs=debug,rwhlib::core=trace,mio=debug,ws=error",
+                "rwh=debug,rwhlib::core=trace,mio=debug,ws=error",
             ))
             .with_target(false)
             .init();
@@ -442,13 +437,13 @@ async fn async_main() -> eyre::Result<()> {
             tracing::warn!(
                 "This is an unstable feature. Make sure that your peer is running the exact same version of the program as you. Also, please report all bugs and crashes."
             );
-            /* Map the CLI argument to Strings. Use the occasion to inspect them and fail early on malformed input. */
+            // Map the CLI argument to Strings. Use the occasion to inspect them and fail early on malformed input.
             let targets = targets
                 .into_iter()
                 .enumerate()
                 .map(|(index, target)| {
                     let result = (|| {
-                        /* Either HOST:PORT or PORT */
+                        // Either HOST:PORT or PORT
                         match target.rsplit_once(':') {
                             Some((host, port)) => {
                                 let host = url::Host::parse(host)
@@ -458,7 +453,7 @@ async fn async_main() -> eyre::Result<()> {
                                 Ok((Some(host), port))
                             },
                             None => {
-                                /* It's just a port */
+                                // Just a port
                                 target
                                     .parse::<u16>()
                                     .map(|port| (None, port))
@@ -553,7 +548,7 @@ async fn async_main() -> eyre::Result<()> {
             match shell {
                 shell @ clap_complete::Shell::Zsh => {
                     // for zsh, we will wrap the output to make it easier to use
-                    // this way we can source it directly `source <(wormhole-rs completion zsh)`
+                    // this way we can source it directly `source <(rwh completion zsh)`
 
                     let mut out = Vec::new();
                     clap_complete::generate(shell, &mut cmd, binary_name, &mut out);
@@ -593,13 +588,10 @@ fn parse_transit_args(args: &CommonArgs) -> transit::Abilities {
 type PrintCodeFn =
     dyn Fn(&mut Term, &rwhlib::Code, &Option<url::Url>, bool) -> eyre::Result<()>;
 
-/**
- * Parse the necessary command line arguments to establish an initial server connection.
- * This is used over and over again by the different subcommands.
- *
- * If this `is_send` and the code is not specified via the CLI, then a code will be allocated.
- * Otherwise, the user will be prompted interactively to enter it.
- */
+// Parse the necessary command line arguments to establish an initial server connection.
+// This is used over and over again by the different subcommands.
+// If this `is_send` and the code is not specified via the CLI, then a code will be allocated.
+// Otherwise, the user will be prompted interactively to enter it.
 async fn parse_and_connect(
     term: &mut Term,
     common_args: CommonArgs,
@@ -667,7 +659,7 @@ async fn parse_and_connect(
         None => None,
     };
 
-    /* We need to track that information for when we generate a QR code */
+    // We need to track that information for when we generate a QR code
     let mut uri_rendezvous = None;
     if let Some(rendezvous_server) = common_args.rendezvous_server {
         uri_rendezvous = Some(rendezvous_server.clone());
@@ -689,7 +681,7 @@ async fn parse_and_connect(
             let mailbox_connection =
                 MailboxConnection::create(app_config, code_length.unwrap()).await?;
 
-            /* Print code and also copy it to clipboard */
+            // Print code and also copy it to clipboard
             if is_send {
                 #[cfg(feature = "clipboard")]
                 {
@@ -844,7 +836,7 @@ fn sender_print_code(
     if !qr {
         tracing::debug!("QR option not enabled. Skipping QR code generation.");
     } else {
-        writeln!(term, "")?;
+        writeln!(term)?;
         let qr_code = qr2term::generate_qr_string(&uri)
             .context("Failed to generate QR code for send link")?;
         writeln!(term, "{qr_code}")?;
@@ -933,14 +925,13 @@ async fn send_many(
         "Reminder that you are sending the file to multiple people, and this may reduce the overall security. See the help page for more information."
     );
 
-    /* Progress bar is commented out for now. See the issues about threading/async in
-     * the Indicatif repository for more information. Multiple progress bars are not usable
-     * for us at the moment, so we'll have to do without for now.
-     */
+    // Progress bar is commented out for now. See the issues about threading/async in
+    // the Indicatif repository for more information. Multiple progress bars are not usable
+    // for us at the moment, so we'll have to do without for now.
     let mp = MultiProgress::new();
     let time = Instant::now();
 
-    /* Special-case the first send with reusing the existing connection */
+    // Special-case the first send with reusing the existing connection
     send_in_background(
         relay_hints.clone(),
         make_send_offer(files.clone(), file_name.clone()).await?,
@@ -1072,14 +1063,11 @@ async fn receive_inner_v1(
 ) -> eyre::Result<()> {
     use smol::fs::OpenOptions;
 
-    /*
-     * Control flow is a bit tricky here:
-     * - First of all, we ask if we want to receive the file at all
-     * - Then, we check if the file already exists
-     * - If it exists, ask whether to overwrite and act accordingly
-     * - If it doesn't, directly accept, but DON'T overwrite any files
-     */
-
+    // Control flow is a bit tricky here:
+    // - First of all, we ask if we want to receive the file at all
+    // - Then, we check if the file already exists
+    // - If it exists, ask whether to overwrite and act accordingly
+    // - If it doesn't, directly accept, but DON'T overwrite any files (that just popped up)
     use unit_prefix::NumberPrefix;
     if !(noconfirm
         || util::ask_user(
@@ -1117,7 +1105,7 @@ async fn receive_inner_v1(
 
     let pb = create_progress_bar(req.file_size());
 
-    /* Then, accept if the file exists */
+    // Then, accept if the file exists
     if !file_path.exists() || noconfirm {
         let mut file = OpenOptions::new()
             .write(true)
@@ -1136,7 +1124,7 @@ async fn receive_inner_v1(
             .context("Receive process failed");
     }
 
-    /* If there is a collision, ask whether to overwrite */
+    // If there is a collision, ask whether to overwrite
     if !util::ask_user(
         if should_use_color() {
             format!(
@@ -1204,7 +1192,7 @@ async fn receive_inner_v2(
         pb.set_position(received);
     };
 
-    /* Create a temporary directory for receiving */
+    // Create a temporary directory for receiving
     use rand::Rng;
     let tmp_dir = target_dir.join(format!(
         "wormhole-tmp-{:06}",
@@ -1214,21 +1202,21 @@ async fn receive_inner_v2(
         .await
         .context("Failed to create temporary directory for receiving")?;
 
-    /* Prepare the receive by creating all directories */
+    // Prepare the receive by creating all directories
     offer.create_directories(&tmp_dir).await?;
 
-    /* Accept the offer and receive it */
+    // Accept the offer and receive it
     let answer = offer.accept_all(&tmp_dir);
     req.accept(&transit_handler, answer, on_progress, ctrlc_handler())
         .await
         .context("Receive process failed")?;
 
-    // /* Put in all the symlinks last, this greatly reduces the attack surface */
+    // Put in all the symlinks last, this greatly reduces the attack surface
     // offer.create_symlinks(&tmp_dir).await?;
 
-    /* TODO walk the output directory and delete things we did not accept; this will be important for resumption */
+    // TODO walk the output directory and delete things we did not accept; this will be important for resumption
 
-    /* Move the received files to their target location */
+    // Move the received files to their target location
     use futures::TryStreamExt;
     smol::fs::read_dir(&tmp_dir)
     .await?
@@ -1240,7 +1228,7 @@ async fn receive_inner_v2(
             let name = path.file_name().expect("Internal error: this should never happen");
             let target_path = target_dir.join(name);
 
-            /* This suffers some TOCTTOU, sorry about that: https://internals.rust-lang.org/t/rename-file-without-overriding-existing-target/17637 */
+            // This suffers some TOCTTOU, sorry about that: https://internals.rust-lang.org/t/rename-file-without-overriding-existing-target/17637
             let path = std::path::PathBuf::from(&target_path);
             let dest = path.clone();
             if smol::unblock(move || dest.exists()).await {
@@ -1257,7 +1245,7 @@ async fn receive_inner_v2(
     .try_collect::<()>()
     .await?;
 
-    /* Delete the temporary directory */
+    // Delete the temporary directory
     smol::fs::remove_dir_all(&tmp_dir).await.context(format!(
         "Failed to delete {}, please do it manually",
         tmp_dir.display()
@@ -1291,22 +1279,22 @@ fn transit_handler(info: TransitInfo) {
 }
 
 fn should_use_color() -> bool {
-    // Check NO_COLOR first - if it exists with any value, disable colors
-    if std::env::var_os("NO_COLOR").is_some() {
+    // Check --no-color first to disable colors
+    if *NO_COLOR.get().unwrap() {
         return false;
     }
 
-    // Then check CLICOLOR_FORCE - if set and not empty/"0", enable colors regardless of terminal
-    if std::env::var_os("CLICOLOR_FORCE").is_some_and(|e| !e.is_empty() && e != "0") {
+    // Then check RWH_COLOR_FORCE - if set and not empty/"0", enable colors regardless of terminal
+    if std::env::var_os("RWH_COLOR_FORCE").is_some_and(|e| !e.is_empty() && e != "0") {
         return true;
     }
 
-    // Check CLICOLOR - if set and not empty/"0", use colors only when writing to a terminal
-    if std::env::var_os("CLICOLOR").is_some_and(|e| !e.is_empty() && e != "0") {
+    // Check RWH_COLOR - if set and not empty/"0", use colors only when writing to a terminal
+    if std::env::var_os("RWH_COLOR").is_some_and(|e| !e.is_empty() && e != "0") {
         return std::io::stdout().is_terminal();
     }
 
-    // Modern default (acting as if CLICOLOR is set)
+    // Modern default (acting as if RWH_COLOR is set)
     std::io::stdout().is_terminal()
 }
 
