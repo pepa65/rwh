@@ -18,7 +18,7 @@ use completer::enter_code;
 use console::{Term, style};
 use futures::{Future, future::Either};
 use indicatif::{MultiProgress, ProgressBar};
-use rwhlib::{
+use rwh::{
 	MailboxConnection, ParseCodeError, ParsePasswordError, Wormhole, forwarding, transfer,
 	transit::{self, ConnectionType, TransitInfo},
 };
@@ -275,7 +275,7 @@ async fn async_main() -> eyre::Result<()> {
 	if app.log {
 		tracing_subscriber::fmt()
 			.with_max_level(tracing::Level::TRACE)
-			.with_env_filter(EnvFilter::new("rwh=debug,rwhlib::core=trace,mio=debug,ws=error"))
+			.with_env_filter(EnvFilter::new("rwh=debug,rwh::core=trace,mio=debug,ws=error"))
 			.with_target(false)
 			.init();
 		tracing::trace!("Logging enabled.");
@@ -462,7 +462,7 @@ fn parse_transit_args(args: &CommonArgs) -> transit::Abilities {
 	}
 }
 
-type PrintCodeFn = dyn Fn(&mut Term, &rwhlib::Code, &Option<url::Url>, bool) -> eyre::Result<()>;
+type PrintCodeFn = dyn Fn(&mut Term, &rwh::Code, &Option<url::Url>, bool) -> eyre::Result<()>;
 
 // Parse the necessary command line arguments to establish an initial server connection.
 // This is used over and over again by the different subcommands.
@@ -470,8 +470,8 @@ type PrintCodeFn = dyn Fn(&mut Term, &rwhlib::Code, &Option<url::Url>, bool) -> 
 // Otherwise, the user will be prompted interactively to enter it.
 async fn parse_and_connect(
 	term: &mut Term, common_args: CommonArgs, mut code: Option<String>, code_length: Option<usize>, qr: bool, is_send: bool,
-	mut app_config: rwhlib::AppConfig<impl serde::Serialize + Send + Sync + 'static>, print_code: Option<&PrintCodeFn>,
-) -> eyre::Result<(Wormhole, rwhlib::Code, Vec<transit::RelayHint>)> {
+	mut app_config: rwh::AppConfig<impl serde::Serialize + Send + Sync + 'static>, print_code: Option<&PrintCodeFn>,
+) -> eyre::Result<(Wormhole, rwh::Code, Vec<transit::RelayHint>)> {
 	// TODO handle relay servers with multiple endpoints better
 	let mut relay_hints: Vec<transit::RelayHint> = common_args
 		.relay_server
@@ -479,7 +479,7 @@ async fn parse_and_connect(
 		.map(|url| transit::RelayHint::from_urls(url.host_str().map(str::to_owned), [url]))
 		.collect::<Result<_, transit::RelayHintParseError>>()?;
 	if relay_hints.is_empty() {
-		relay_hints.push(transit::RelayHint::from_urls(None, [rwhlib::transit::DEFAULT_RELAY_SERVER.parse().unwrap()])?)
+		relay_hints.push(transit::RelayHint::from_urls(None, [rwh::transit::DEFAULT_RELAY_SERVER.parse().unwrap()])?)
 	}
 
 	if code.is_none() && !is_send {
@@ -491,8 +491,8 @@ async fn parse_and_connect(
 	// We accept a little breakage in non-interactive use, because this is a security issue
 	// Split the nameplate parsing from the code parsing to ensure we allow non-integer nameplates
 	// until the next breaking release
-	let res: Option<Result<rwhlib::Code, _>> = code.as_ref().map(|c| c.parse());
-	let code: Option<rwhlib::Code> = match res {
+	let res: Option<Result<rwh::Code, _>> = code.as_ref().map(|c| c.parse());
+	let code: Option<rwh::Code> = match res {
 		Some(Ok(code)) => Some(code),
 		// Check if an interactive terminal is connected
 		Some(Err(err @ (ParseCodeError::SeparatorMissing | ParseCodeError::Password(ParsePasswordError::TooShort { .. })))) => {
@@ -508,7 +508,7 @@ async fn parse_and_connect(
 			tracing::error!("{} This will fail in the next release.", err);
 			code.map(|c| {
 				let (nameplate, password) = c.split_once("-").unwrap();
-				unsafe { rwhlib::Code::from_components(rwhlib::Nameplate::new_unchecked(nameplate), rwhlib::Password::new_unchecked(password)) }
+				unsafe { rwh::Code::from_components(rwh::Nameplate::new_unchecked(nameplate), rwh::Password::new_unchecked(password)) }
 			})
 		}
 		None => None,
@@ -638,8 +638,8 @@ fn print_welcome(term: &mut Term, welcome: Option<&str>) -> eyre::Result<()> {
 }
 
 // For file transfer
-fn sender_print_code(term: &mut Term, code: &rwhlib::Code, rendezvous_server: &Option<url::Url>, qr: bool) -> eyre::Result<()> {
-	let uri = rwhlib::uri::WormholeTransferUri { code: code.clone(), rendezvous_server: rendezvous_server.clone(), is_leader: false }.to_string();
+fn sender_print_code(term: &mut Term, code: &rwh::Code, rendezvous_server: &Option<url::Url>, qr: bool) -> eyre::Result<()> {
+	let uri = rwh::uri::WormholeTransferUri { code: code.clone(), rendezvous_server: rendezvous_server.clone(), is_leader: false }.to_string();
 
 	if cfg!(feature = "clipboard") {
 		writeln!(term, "\nCode: {} (also copied to your clipboard)", style(&code).bold())?;
@@ -662,7 +662,7 @@ fn sender_print_code(term: &mut Term, code: &rwhlib::Code, rendezvous_server: &O
 }
 
 // For port forwarding
-fn server_print_code(term: &mut Term, code: &rwhlib::Code, _: &Option<url::Url>, _qr: bool) -> eyre::Result<()> {
+fn server_print_code(term: &mut Term, code: &rwh::Code, _: &Option<url::Url>, _qr: bool) -> eyre::Result<()> {
 	if cfg!(feature = "clipboard") {
 		writeln!(term, "\nThis wormhole's code is: {} (it has been copied to your clipboard)", style(&code).bold())?;
 	} else {
@@ -687,7 +687,7 @@ async fn send(
 }
 
 async fn send_many(
-	relay_hints: Vec<transit::RelayHint>, code: &rwhlib::Code, files: Vec<PathBuf>, file_name: Option<String>, max_tries: u64, timeout: Duration,
+	relay_hints: Vec<transit::RelayHint>, code: &rwh::Code, files: Vec<PathBuf>, file_name: Option<String>, max_tries: u64, timeout: Duration,
 	wormhole: Wormhole, term: &mut Term, transit_abilities: transit::Abilities,
 ) -> eyre::Result<()> {
 	tracing::warn!(

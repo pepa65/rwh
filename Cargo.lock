@@ -2548,37 +2548,10 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rwh"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "arboard",
  "async-channel",
- "clap",
- "clap_complete",
- "color-eyre",
- "console",
- "ctrlc",
- "dialoguer",
- "env_logger",
- "futures",
- "indicatif",
- "qr2term",
- "rand",
- "rwhlib",
- "serde",
- "serde_derive",
- "serde_json",
- "smol",
- "tracing",
- "tracing-subscriber",
- "trycmd",
- "unit-prefix",
- "url",
-]
-
-[[package]]
-name = "rwhlib"
-version = "0.10.0"
-dependencies = [
  "async-executor",
  "async-fs",
  "async-io",
@@ -2589,8 +2562,15 @@ dependencies = [
  "async-tungstenite",
  "base64",
  "bytecodec",
+ "clap",
+ "clap_complete",
+ "color-eyre",
+ "console",
  "crypto_secretbox",
+ "ctrlc",
  "derive_more",
+ "dialoguer",
+ "env_logger",
  "eyre",
  "futures",
  "futures-concurrency",
@@ -2600,11 +2580,13 @@ dependencies = [
  "hex",
  "hkdf 0.13.0",
  "if-addrs",
+ "indicatif",
  "libc",
  "macro_rules_attr",
  "noise-protocol",
  "noise-rust-crypto",
  "percent-encoding",
+ "qr2term",
  "rand",
  "rmp-serde",
  "serde",
@@ -2612,6 +2594,7 @@ dependencies = [
  "serde_json",
  "sha1 0.11.0",
  "sha2 0.11.0",
+ "smol",
  "socket2",
  "spake2",
  "stun_codec",
@@ -2620,6 +2603,9 @@ dependencies = [
  "thiserror",
  "time",
  "tracing",
+ "tracing-subscriber",
+ "trycmd",
+ "unit-prefix",
  "url",
  "wasm-bindgen-test",
  "wasmtimer",

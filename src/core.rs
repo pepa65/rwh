@@ -4,8 +4,6 @@ use rand::Rng;
 pub(super) mod key;
 pub mod rendezvous;
 mod server_messages;
-#[cfg(test)]
-mod test;
 
 /// Module for wormhole code generation and completion.
 pub mod wordlist;

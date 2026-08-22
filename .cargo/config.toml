@@ -1,26 +1,11 @@
 [alias]
-rel = "build --release"
-inst = "install --path ."
-clip = "clippy --release"
+rel = "build --release --target x86_64-unknown-linux-musl"
+inst = "install --target x86_64-unknown-linux-musl --path ."
+clip = "clippy --release --all-targets --features all"
 pub = "publish"
 up = "update --verbose"
 
-[build]
-target = "x86_64-unknown-linux-musl"
-
-[install]
-target = "x86_64-unknown-linux-musl"
-
-[publish]
-target = "x86_64-unknown-linux-musl"
-
-[clippy]
-target = "x86_64-unknown-linux-musl"
-
-[update]
-target = "x86_64-unknown-linux-musl"
-
-[target.'cfg(all())']
+[target.x86_64-unknown-linux-musl]
 rustflags = [ "-Ctarget-feature=+crt-static", "-Ctarget-cpu=generic"]
 
 [target.wasm32-unknown-unknown]
