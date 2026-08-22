@@ -1,5 +1,4 @@
 //! Implementation of the Client-to-Server part
-//!
 //! Wormhole builds upon this, so you usually don't need to bother.
 
 #[cfg(not(target_family = "wasm"))]
@@ -13,7 +12,6 @@ use crate::core::{
 };
 
 /// Some rendezvous server you might use.
-///
 /// Two applications that want to communicate with each other *must* use the same rendezvous server.
 pub const DEFAULT_RENDEZVOUS_SERVER: &str = "ws://relay.magic-wormhole.io:4000/v1";
 
@@ -191,7 +189,7 @@ impl WsConnection {
 				}
 			}
 			ws2::Message::Binary(_) => Err(RendezvousError::protocol("WebSocket messages must be UTF-8 encoded text")),
-			/* Ignore ping pong for now */
+			// Ignore ping pong for now
 			ws2::Message::Ping(_) => Ok(None),
 			ws2::Message::Pong(_) => Ok(None),
 			ws2::Message::Close(_) => {
@@ -289,12 +287,9 @@ impl std::fmt::Debug for RendezvousServer {
 }
 
 impl RendezvousServer {
-	/**
-	 * Connect to the rendezvous server
-	 *
-	 * This does the permission negotiation part if required and binds the
-	 * connection to the given `appid`.
-	 */
+	// Connect to the rendezvous server
+	// This does the permission negotiation part if required and binds the
+	// connection to the given `appid`.
 	pub async fn connect(appid: &AppID, relay_url: &str) -> Result<(Self, Option<String>), RendezvousError> {
 		let side = MySide::generate();
 		let mut connection;
@@ -343,7 +338,7 @@ impl RendezvousServer {
 		Ok((Self { connection: Box::new(connection), state: None, side }, welcome.motd))
 	}
 
-	/** A random unique string for this session */
+	// A random unique string for this session
 	pub(crate) fn side(&self) -> &MySide {
 		&self.side
 	}
@@ -390,7 +385,7 @@ impl RendezvousServer {
 		}
 	}
 
-	/** Allocate a nameplate, claim the mailbox and open it */
+	// Allocate a nameplate, claim the mailbox and open it
 	pub async fn allocate_claim_open(&mut self) -> Result<(Nameplate, Mailbox), RendezvousError> {
 		assert!(self.state.is_none(), "Can only call in initial state, and only once");
 
@@ -413,7 +408,7 @@ impl RendezvousServer {
 		Ok((nameplate, mailbox))
 	}
 
-	/** Claim a nameplate+mailbox and open it */
+	// Claim a nameplate+mailbox and open it
 	pub async fn claim_open(&mut self, nameplate: Nameplate) -> Result<Mailbox, RendezvousError> {
 		assert!(self.state.is_none(), "Can only call in initial state, and only once");
 
@@ -434,10 +429,8 @@ impl RendezvousServer {
 		self.state.as_ref().and_then(|state| state.nameplate.as_ref()).is_some()
 	}
 
-	/**
-	 * Gets the list of currently claimed nameplates.
-	 * This can be called at any time.
-	 */
+	// Gets the list of currently claimed nameplates.
+	// This can be called at any time.
 	pub async fn list_nameplates(&mut self) -> Result<Vec<Nameplate>, RendezvousError> {
 		self.send_message(&OutboundMessage::List).await?;
 		let nameplate_reply = self.receive_reply().await?;
@@ -463,11 +456,8 @@ impl RendezvousServer {
 		Ok(())
 	}
 
-	/**
-	 * Open a mailbox while skipping the nameplate part.
-	 *
-	 * This is the base functionality for seeds.
-	 */
+	// Open a mailbox while skipping the nameplate part.
+	// This is the base functionality for seeds.
 	#[expect(dead_code)]
 	pub async fn open_directly(&mut self, mailbox: Mailbox) -> Result<(), RendezvousError> {
 		assert!(self.state.is_none(), "Can only call in initial state, and only once");

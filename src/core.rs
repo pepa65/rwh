@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use rand::Rng;
 
 pub(super) mod key;
@@ -54,7 +55,7 @@ pub enum WormholeError {
 }
 
 impl WormholeError {
-	/** Should we tell the server that we are "errory" or "scared"? */
+	// Should we tell the server that we are "errory" or "scared"?
 	pub fn is_scared(&self) -> bool {
 		matches!(self, Self::PakeFailed)
 	}
@@ -66,23 +67,13 @@ impl From<std::convert::Infallible> for WormholeError {
 	}
 }
 
-/**
- * Establishing Wormhole connection
- *
- * You can send and receive arbitrary messages in form of byte slices over it, using [`Wormhole::send`] and [`Wormhole::receive`].
- * Everything else (including encryption) will be handled for you.
- *
- * To create a wormhole, use the mailbox connection created via [`MailboxConnection::create`] or [`MailboxConnection::connect`] with the [`Wormhole::connect`] method.
- * Typically, the sender side connects without a code (which will create one), and the receiver side has one (the user entered it, who got it from the sender).
- *
- * # Clean shutdown
- *
- * TODO
- */
-/* TODO
- * Maybe a better way to handle application level protocols is to create a trait for them and then
- * to paramterize over them.
- */
+// Establishing Wormhole connection
+// You can send and receive arbitrary messages in form of byte slices over it, using [`Wormhole::send`] and [`Wormhole::receive`].
+// Everything else (including encryption) will be handled for you.
+// To create a wormhole, use the mailbox connection created via [`MailboxConnection::create`] or [`MailboxConnection::connect`] with the [`Wormhole::connect`] method.
+// Typically, the sender side connects without a code (which will create one), and the receiver side has one (the user entered it, who got it from the sender).
+// TODO
+// Maybe a better way to handle application level protocols is to create a trait for them and then to paramterize over them.
 /// A `MailboxConnection` contains a `RendezvousServer` which is connected to the mailbox
 pub struct MailboxConnection<V: serde::Serialize + Send + Sync + 'static> {
 	/// A copy of `AppConfig`,
@@ -257,22 +248,22 @@ impl Wormhole {
 	pub async fn connect(mailbox_connection: MailboxConnection<impl serde::Serialize + Send + Sync + 'static>) -> Result<Self, WormholeError> {
 		let MailboxConnection { config, mut server, mailbox: _mailbox, code, welcome: _welcome } = mailbox_connection;
 
-		/* Send PAKE */
+		// Send PAKE
 		let (pake_state, pake_msg_ser) = key::make_pake(code.as_str(), &config.id);
 		server.send_peer_message(Phase::PAKE, pake_msg_ser).await?;
 
-		/* Receive PAKE */
+		// Receive PAKE
 		let peer_pake = key::extract_pake_msg(&server.next_peer_message_some().await?.body)?;
 		let key = pake_state.finish(&peer_pake).map_err(|_| WormholeError::PakeFailed).map(|key| *secretbox::Key::from_slice(&key))?;
 
-		/* Send versions message */
+		// Send versions message
 		let mut versions = key::VersionsMessage::new();
 		versions.set_app_versions(serde_json::to_value(&config.app_version).unwrap());
 		let (version_phase, version_msg) = key::build_version_msg(server.side(), &key, &versions);
 		server.send_peer_message(version_phase, version_msg).await?;
 		let peer_version = server.next_peer_message_some().await?;
 
-		/* Handle received message */
+		// Handle received message
 		let versions: key::VersionsMessage = peer_version
 			.decrypt(&key)
 			.ok_or(WormholeError::PakeFailed)
@@ -286,7 +277,7 @@ impl Wormhole {
 
 		tracing::info!("Found peer on the rendezvous server.");
 
-		/* We are now fully initialized! Up and running! :tada: */
+		// We are now fully initialized! Up and running! :tada:
 		Ok(Self {
 			server,
 			appid: config.id,
@@ -298,7 +289,7 @@ impl Wormhole {
 		})
 	}
 
-	/** Send an encrypted message to peer */
+	// Send an encrypted message to peer
 	pub async fn send(&mut self, plaintext: Vec<u8>) -> Result<(), WormholeError> {
 		let phase_string = Phase::numeric(self.phase);
 		self.phase += 1;
@@ -308,21 +299,15 @@ impl Wormhole {
 		Ok(())
 	}
 
-	/**
-	 * Serialize and send an encrypted message to peer
-	 *
-	 * This will serialize the message as `json` string, which is most commonly
-	 * used by upper layer protocols. The serialization may not fail
-	 *
-	 * ## Panics
-	 *
-	 * If the serialization fails
-	 */
+	// Serialize and send an encrypted message to peer
+	// This will serialize the message as `json` string, which is most commonly
+	// used by upper layer protocols. The serialization may not fail
+	// ## Panics - If the serialization fails
 	pub async fn send_json<T: serde::Serialize>(&mut self, message: &T) -> Result<(), WormholeError> {
 		self.send(serde_json::to_vec(message).unwrap()).await
 	}
 
-	/** Receive an encrypted message from peer */
+	// Receive an encrypted message from peer
 	pub async fn receive(&mut self) -> Result<Vec<u8>, WormholeError> {
 		loop {
 			let peer_message = match self.server.next_peer_message().await? {
@@ -342,13 +327,10 @@ impl Wormhole {
 		}
 	}
 
-	/**
-	 * Receive an encrypted message from peer
-	 *
-	 * This will deserialize the message as `json` string, which is most commonly
-	 * used by upper layer protocols. We distinguish between the different layers
-	 * on which a serialization error happened, hence the double `Result`.
-	 */
+	// Receive an encrypted message from peer
+	// This will deserialize the message as `json` string, which is most commonly
+	// used by upper layer protocols. We distinguish between the different layers
+	// on which a serialization error happened, hence the double `Result`.
 	pub async fn receive_json<T>(&mut self) -> Result<Result<T, serde_json::Error>, WormholeError>
 	where
 		T: for<'a> serde::Deserialize<'a>,
@@ -366,50 +348,38 @@ impl Wormhole {
 		self.server.shutdown(Mood::Happy).await.map_err(Into::into)
 	}
 
-	/**
-	 * The `AppID` this wormhole is bound to.
-	 * This determines the upper-layer protocol. Only wormholes with the same value can talk to each other.
-	 */
+	// The `AppID` this wormhole is bound to.
+	// This determines the upper-layer protocol. Only wormholes with the same value can talk to each other.
 	pub fn appid(&self) -> &AppID {
 		&self.appid
 	}
 
-	/**
-	 * The symmetric encryption key used by this connection.
-	 * Can be used to derive sub-keys for different purposes.
-	 */
+	// The symmetric encryption key used by this connection.
+	// Can be used to derive sub-keys for different purposes.
 	pub fn key(&self) -> &key::Key<key::WormholeKey> {
 		&self.key
 	}
 
-	/**
-	 * If you're paranoid, let both sides check that they calculated the same verifier.
-	 *
-	 * PAKE hardens a standard key exchange with a password ("password authenticated") in order
-	 * to mitigate potential man in the middle attacks that would otherwise be possible. Since
-	 * the passwords usually are not of hight entropy, there is a low-probability possible of
-	 * an attacker guessing the password correctly, enabling them to MitM the connection.
-	 *
-	 * Not only is that probability low, but they also have only one try per connection and a failed
-	 * attempts will be noticed by both sides. Nevertheless, comparing the verifier mitigates that
-	 * attack vector.
-	 */
+	// If you're paranoid, let both sides check that they calculated the same verifier.
+	// PAKE hardens a standard key exchange with a password ("password authenticated") in order
+	// to mitigate potential man in the middle attacks that would otherwise be possible. Since
+	// the passwords usually are not of hight entropy, there is a low-probability possible of
+	// an attacker guessing the password correctly, enabling them to MitM the connection.
+	// Not only is that probability low, but they also have only one try per connection and a failed
+	// attempts will be noticed by both sides. Nevertheless, comparing the verifier mitigates that
+	// attack vector.
 	pub fn verifier(&self) -> &secretbox::Key {
 		&self.verifier
 	}
 
-	/**
-	 * Our "app version" information that we sent. See the [`peer_version`](Self::peer_version()) for more information.
-	 */
+	// Our "app version" information that we sent. See the [`peer_version`](Self::peer_version()) for more information.
 	pub fn our_version(&self) -> &(dyn std::any::Any + Send + Sync) {
 		&*self.our_version
 	}
 
-	/**
-	 * Protocol version information from the other side.
-	 * This is bound by the [`AppID`]'s protocol and thus shall be handled on a higher level
-	 * (e.g. by the file transfer API).
-	 */
+	// Protocol version information from the other side.
+	// This is bound by the [`AppID`]'s protocol and thus shall be handled on a higher level
+	// (e.g. by the file transfer API).
 	pub fn peer_version(&self) -> &serde_json::Value {
 		&self.peer_version
 	}
@@ -440,17 +410,13 @@ pub enum Mood {
 	Unwelcome,
 }
 
-/**
- * Wormhole configuration corresponding to an uppler layer protocol
- *
- * There are multiple different protocols built on top of the core
- * Wormhole protocol. They are identified by a unique URI-like ID string
- * (`AppID`), an URL to find the rendezvous server (might be shared among
- * multiple protocols), and client implementations also have a "version"
- * data to do protocol negotiation.
- *
- * See [`crate::transfer::APP_CONFIG`].
- */
+// Wormhole configuration corresponding to an uppler layer protocol
+// There are multiple different protocols built on top of the core
+// Wormhole protocol. They are identified by a unique URI-like ID string
+// (`AppID`), an URL to find the rendezvous server (might be shared among
+// multiple protocols), and client implementations also have a "version"
+// data to do protocol negotiation.
+// See [`crate::transfer::APP_CONFIG`].
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct AppConfig<V> {
 	/// The ID of the used application
@@ -761,12 +727,10 @@ pub enum ParseCodeError {
 	Password(#[from] ParsePasswordError),
 }
 
-/** A wormhole code à la 15-foo-bar
- *
- * The part until the first dash is called the "nameplate" and is purely numeric.
- * The rest is the password and may be arbitrary, although dash-joining words from
- * a wordlist is a common convention.
- */
+// A wormhole code à la 15-foo-bar
+// The part until the first dash is called the "nameplate" and is purely numeric.
+// The rest is the password and may be arbitrary, although dash-joining words from
+// a wordlist is a common convention.
 #[derive(PartialEq, Eq, Clone, Debug, derive_more::Display)]
 #[display("{}", _0)]
 pub struct Code(String);

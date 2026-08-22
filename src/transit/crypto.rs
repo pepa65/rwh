@@ -129,10 +129,9 @@ impl TransitCryptoInit for SecretboxInit {
 
 	async fn handshake_follower(&self, socket: &mut dyn TransitTransport) -> Result<Box<dyn TransitCryptoInitFinalizer>, TransitHandshakeError> {
 		// 9. create record keys
-		/* The order here is correct. The "sender" and "receiver" side are a misnomer and should be called
-		 * "leader" and "follower" instead. As a follower, we use the leader key for receiving and our
-		 * key for sending.
-		 */
+		// The order here is correct. The "sender" and "receiver" side are a misnomer and should be called
+		// "leader" and "follower" instead. As a follower, we use the leader key for receiving and our
+		// key for sending.
 		let rkey = self.key.derive_subkey_from_purpose("transit_record_sender_key");
 		let skey = self.key.derive_subkey_from_purpose("transit_record_receiver_key");
 
@@ -269,20 +268,17 @@ pub(super) trait TransitCryptoDecrypt: Send {
 }
 
 struct SecretboxCryptoEncrypt {
-	/** Our key, used for sending */
+	// Our key, used for sending
 	pub skey: Key<TransitTxKey>,
-	/** Nonce for sending */
+	// Nonce for sending
 	pub snonce: secretbox::Nonce,
 }
 
 struct SecretboxCryptoDecrypt {
-	/** Their key, used for receiving */
+	// Their key, used for receiving
 	pub rkey: Key<TransitRxKey>,
-	/**
-	 * Nonce for receiving
-	 *
-	 * We'll count as receiver and track if messages come in in order
-	 */
+	// Nonce for receiving
+	// We'll count as receiver and track if messages come in in order
 	pub rnonce: secretbox::Nonce,
 }
 
@@ -298,7 +294,7 @@ impl TransitCryptoEncrypt for SecretboxCryptoEncrypt {
 			let cipher = secretbox::XSalsa20Poly1305::new(sodium_key);
 			cipher
 				.encrypt(nonce_le, plaintext)
-				/* TODO replace with (TransitError::Crypto) after the next xsalsa20poly1305 update */
+				// TODO replace with (TransitError::Crypto) after the next xsalsa20poly1305 update
 				.map_err(|_| TransitError::Crypto)?
 		};
 
@@ -339,7 +335,7 @@ impl TransitCryptoDecrypt for SecretboxCryptoDecrypt {
 			let cipher = secretbox::XSalsa20Poly1305::new(secretbox::Key::from_slice(self.rkey.as_ref()));
 			cipher
 				.decrypt(secretbox::Nonce::from_slice(received_nonce), ciphertext)
-				/* TODO replace with (TransitError::Crypto) after the next xsalsa20poly1305 update */
+				// TODO replace with (TransitError::Crypto) after the next xsalsa20poly1305 update
 				.map_err(|_| TransitError::Crypto)?
 		};
 

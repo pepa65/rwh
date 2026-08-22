@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! Connect two sides via TCP, no matter where they are
 //!
 //! This protocol is the second part where the Wormhole magic happens. It does not strictly require a Wormhole connection,
@@ -18,7 +19,7 @@ use serde_derive::{Deserialize, Serialize};
 
 #[cfg(not(target_family = "wasm"))]
 use async_net::{TcpListener, TcpStream};
-#[allow(unused_imports)] /* We need them for the docs */
+#[allow(unused_imports)] // We need them for the docs
 use futures::{
 	Sink, SinkExt, Stream, StreamExt, TryStreamExt,
 	future::FutureExt,
@@ -131,19 +132,16 @@ impl From<()> for TransitError {
 	}
 }
 
-/**
- * Defines a way to find the other side.
- *
- * Each ability comes with a set of [`Hints`] to encode how to meet up.
- */
+// Defines a way to find the other side.
+// Each ability comes with a set of [`Hints`] to encode how to meet up.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Abilities {
-	/** Direct connection to the peer */
+	// Direct connection to the peer
 	pub direct_tcp_v1: bool,
-	/** Connection over a relay */
+	// Connection over a relay
 	pub relay_v1: bool,
 	#[cfg(any())]
-	/** **Experimental** Use the [noise protocol](https://noiseprotocol.org) for the encryption. */
+	// **Experimental** Use the [noise protocol](https://noiseprotocol.org) for the encryption.
 	pub noise_v1: bool,
 }
 
@@ -156,12 +154,9 @@ impl Abilities {
 		noise_v1: false,
 	};
 
-	/**
-	 * If you absolutely don't want to use any relay servers.
-	 *
-	 * If the other side forces relay usage or doesn't support any of your connection modes
-	 * the attempt will fail.
-	 */
+	// If you absolutely don't want to use any relay servers.
+	// If the other side forces relay usage or doesn't support any of your connection modes
+	// the attempt will fail.
 	pub const FORCE_DIRECT: Self = Self {
 		direct_tcp_v1: true,
 		relay_v1: false,
@@ -169,14 +164,11 @@ impl Abilities {
 		noise_v1: false,
 	};
 
-	/**
-	 * If you don't want to disclose your IP address to your peer
-	 *
-	 * If the other side forces a the usage of a direct connection the attempt will fail.
-	 * Note that the other side might control the relay server being used, if you really
-	 * don't want your IP to potentially be disclosed use TOR instead (not supported by
-	 * the Rust implementation yet).
-	 */
+	// If you don't want to disclose your IP address to your peer
+	// If the other side forces a the usage of a direct connection the attempt will fail.
+	// Note that the other side might control the relay server being used, if you really
+	// don't want your IP to potentially be disclosed use TOR instead (not supported by
+	// the Rust implementation yet).
 	pub const FORCE_RELAY: Self = Self {
 		direct_tcp_v1: false,
 		relay_v1: true,
@@ -260,7 +252,7 @@ impl<'de> serde::Deserialize<'de> for Abilities {
 		}
 
 		let mut abilities = Self::default();
-		/* Specifying a hint multiple times is undefined behavior. Here, we simply merge all features. */
+		// Specifying a hint multiple times is undefined behavior. Here, we simply merge all features.
 		for ability in <Vec<Ability> as serde::Deserialize>::deserialize(de)? {
 			match ability {
 				Ability::DirectTcpV1 => {
@@ -280,7 +272,7 @@ impl<'de> serde::Deserialize<'de> for Abilities {
 	}
 }
 
-/* Wire representation of a single hint */
+// Wire representation of a single hint
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "kebab-case", tag = "type")]
 #[non_exhaustive]
@@ -291,12 +283,12 @@ enum HintSerde {
 	Unknown,
 }
 
-/** Information about how to find a peer */
+// Information about how to find a peer
 #[derive(Clone, Debug, Default)]
 pub struct Hints {
-	/** Hints for direct connection */
+	// Hints for direct connection
 	pub direct_tcp: HashSet<DirectHint>,
-	/** List of relay servers */
+	// List of relay servers
 	pub relay: Vec<RelayHint>,
 }
 
@@ -325,12 +317,12 @@ impl<'de> serde::Deserialize<'de> for Hints {
 				HintSerde::RelayV1(hint) => {
 					relay_v2.push(hint);
 				}
-				/* Ignore unknown hints */
+				// Ignore unknown hints
 				_ => {}
 			}
 		}
 
-		/* If there are any relay-v2 hints, there relay-v1 are redundant */
+		// If there are any relay-v2 hints, there relay-v1 are redundant
 		if !relay_v2.is_empty() {
 			relay.clear();
 		}
@@ -351,7 +343,7 @@ impl serde::Serialize for Hints {
 	}
 }
 
-/** hostname and port for direct connection */
+// hostname and port for direct connection
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, derive_more::Display)]
 #[display("tcp://{}:{}", hostname, port)]
 pub struct DirectHint {
@@ -371,7 +363,7 @@ impl DirectHint {
 	}
 }
 
-/* Wire representation of a single relay hint (Helper struct for serialization) */
+// Wire representation of a single relay hint (Helper struct for serialization)
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "kebab-case", tag = "type")]
 #[non_exhaustive]
@@ -381,7 +373,7 @@ struct RelayHintSerde {
 	endpoints: Vec<RelayHintSerdeInner>,
 }
 
-/* Wire representation of a single relay endpoint (Helper struct for serialization) */
+// Wire representation of a single relay endpoint (Helper struct for serialization)
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "kebab-case", tag = "type")]
 #[non_exhaustive]
@@ -410,25 +402,20 @@ pub enum RelayHintParseError {
 	UrlNotAbsolute(url::Url),
 }
 
-/**
- * Hint describing a relay server
- *
- * A server may be reachable at multiple locations. Any two must be relayable
- * over that server, therefore a client may pick only one of these per hint.
- *
- * All locations are URLs, but here they are already deconstructed and grouped
- * by schema out of convenience.
- */
-/* RelayHint::default() gives the empty server (cannot be reached), and is only there for struct update syntax */
+// Hint describing a relay server
+// A server may be reachable at multiple locations. Any two must be relayable
+// over that server, therefore a client may pick only one of these per hint.
+// All locations are URLs, but here they are already deconstructed and grouped
+// by schema out of convenience.
+// RelayHint::default() gives the empty server (cannot be reached), and is only there for struct update syntax
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct RelayHint {
-	/** Human readable name. The expectation is that when a server has multiple endpoints, the
-	 * expectation is that the domain name is used as name
-	 */
+	// Human readable name. The expectation is that when a server has multiple endpoints, the
+	// expectation is that the domain name is used as name
 	pub name: Option<String>,
-	/** TCP endpoints of that relay */
+	// TCP endpoints of that relay
 	pub tcp: HashSet<DirectHint>,
-	/** WebSockets endpoints of that relay */
+	// WebSockets endpoints of that relay
 	pub ws: HashSet<url::Url>,
 }
 
@@ -465,7 +452,7 @@ impl RelayHint {
 			ensure!(!url.cannot_be_a_base(), RelayHintParseError::UrlNotAbsolute(url));
 			match url.scheme() {
 				"tcp" => {
-					/* Using match */
+					// Using match
 					let (hostname, port) = match (url.host_str(), url.port()) {
 						(Some(hostname), Some(port)) => (hostname.into(), port),
 						_ => bail!(RelayHintParseError::InvalidTcp(url)),
@@ -538,7 +525,7 @@ impl<'de> serde::Deserialize<'de> for RelayHint {
 				RelayHintSerdeInner::Websocket { url } => {
 					hint.ws.insert(url);
 				}
-				/* Ignore unknown hints */
+				// Ignore unknown hints
 				_ => {}
 			}
 		}
@@ -556,7 +543,7 @@ impl TryFrom<&DirectHint> for IpAddr {
 
 impl TryFrom<&DirectHint> for SocketAddr {
 	type Error = std::net::AddrParseError;
-	/** This does not do the obvious thing and also implicitly maps all V4 addresses into V6 */
+	// This does not do the obvious thing and also implicitly maps all V4 addresses into V6
 	fn try_from(hint: &DirectHint) -> Result<SocketAddr, std::net::AddrParseError> {
 		let addr = hint.try_into()?;
 		let addr = match addr {
@@ -661,11 +648,8 @@ impl std::fmt::Display for TransitInfo {
 	}
 }
 
-/**
- * Initialize a relay handshake
- *
- * Bind a port and generate our [`Hints`]. This does not do any communication yet.
- */
+// Initialize a relay handshake
+// Bind a port and generate our [`Hints`]. This does not do any communication yet.
 pub async fn init(mut abilities: Abilities, peer_abilities: Option<Abilities>, relay_hints: Vec<RelayHint>) -> Result<TransitConnector, std::io::Error> {
 	let mut our_hints = Hints::default();
 	#[cfg(not(target_family = "wasm"))]
@@ -675,15 +659,14 @@ pub async fn init(mut abilities: Abilities, peer_abilities: Option<Abilities>, r
 		abilities = abilities.intersect(&peer_abilities);
 	}
 
-	/* Detect our IP addresses if the ability is enabled */
+	// Detect our IP addresses if the ability is enabled
 	#[cfg(not(target_family = "wasm"))]
 	if abilities.can_direct() {
 		let create_sockets =
 			async {
-				/* Do a STUN query to get our public IP. If it works, we must reuse the same socket (port)
-				 * so that we will be NATted to the same port again. If it doesn't, simply bind a new socket
-				 * and use that instead.
-				 */
+				// Do a STUN query to get our public IP. If it works, we must reuse the same socket (port)
+				// so that we will be NATted to the same port again. If it doesn't, simply bind a new socket
+				// and use that instead.
 
 				let socket: MaybeConnectedSocket = match crate::util::timeout(std::time::Duration::from_secs(4), transport::tcp_get_external_ip())
 					.await
@@ -709,15 +692,14 @@ pub async fn init(mut abilities: Abilities, peer_abilities: Option<Abilities>, r
 					}
 				};
 
-				/* Get a second socket, but this time open a listener on that port.
-				 * This sadly doubles the number of hints, but the method above doesn't work
-				 * for systems which don't have any firewalls. Also, this time we can't reuse
-				 * the port. In theory, we could, but it really confused the kernel to the point
-				 * of `accept` calls never returning again.
-				 */
+				// Get a second socket, but this time open a listener on that port.
+				// This sadly doubles the number of hints, but the method above doesn't work
+				// for systems which don't have any firewalls. Also, this time we can't reuse
+				// the port. In theory, we could, but it really confused the kernel to the point
+				// of `accept` calls never returning again.
 				let listener = TcpListener::bind("[::]:0").await?;
 
-				/* Find our ports, iterate all our local addresses, combine them with the ports and that's our hints */
+				// Find our ports, iterate all our local addresses, combine them with the ports and that's our hints
 				let port = socket.local_addr()?.as_socket().unwrap().port();
 				let port2 = listener.local_addr()?.port();
 				our_hints.direct_tcp.extend(if_addrs::get_if_addrs()?.iter().filter(|iface| !iface.is_loopback()).flat_map(|ip| {
@@ -781,18 +763,14 @@ pub enum TransitRole {
 	Follower,
 }
 
-/**
- * A partially set up [`Transit`] connection.
- *
- * For the transit handshake, each side generates a [`Hints`] with all the information to find the other. You need
- * to exchange it (as in: send yours, receive theirs) with them. This is outside of the transit protocol, because we
- * are protocol agnostic.
- */
+// A partially set up [`Transit`] connection.
+// For the transit handshake, each side generates a [`Hints`] with all the information to find the other. You need
+// to exchange it (as in: send yours, receive theirs) with them. This is outside of the transit protocol, because we
+// are protocol agnostic.
 pub struct TransitConnector {
-	/* Only `Some` if direct-tcp-v1 ability has been enabled.
-	 * The first socket is the port from which we will start connection attempts.
-	 * For in case the user is behind no firewalls, we must also listen to the second socket.
-	 */
+	// Only `Some` if direct-tcp-v1 ability has been enabled.
+	// The first socket is the port from which we will start connection attempts.
+	// For in case the user is behind no firewalls, we must also listen to the second socket.
 	#[cfg(not(target_family = "wasm"))]
 	sockets: Option<(MaybeConnectedSocket, TcpListener)>,
 	our_abilities: Abilities,
@@ -805,13 +783,12 @@ impl TransitConnector {
 		&self.our_abilities
 	}
 
-	/** Send this one to the other side */
+	// Send this one to the other side
 	pub fn our_hints(&self) -> &Arc<Hints> {
 		&self.our_hints
 	}
 
 	/// Connect to the other side.
-	///
 	/// One side must call with `role` set to [`TransitRole::Leader`]
 	/// and the other with [`TransitRole::Follower`].
 	pub async fn connect(
@@ -823,9 +800,7 @@ impl TransitConnector {
 		}
 	}
 
-	/**
-	 * Connect to the other side, as sender.
-	 */
+	// Connect to the other side, as sender.
 	async fn leader_connect(
 		self, transit_key: Key<TransitKey>, their_abilities: Abilities, their_hints: Arc<Hints>,
 	) -> Result<(Transit, TransitInfo), TransitConnectError> {
@@ -870,19 +845,18 @@ impl TransitConnector {
 
 		if conn_info.conn_type != ConnectionType::Direct && our_abilities.can_direct() {
 			tracing::debug!("Established transit connection over relay. Trying to find a direct connection …");
-			/* Measure the time it took us to get a response. Based on this, wait some more for more responses
-			 * in case we like one better.
-			 */
+			// Measure the time it took us to get a response. Based on this, wait some more for more responses
+			// in case we like one better.
 			let elapsed = start.elapsed();
 			let to_wait = if elapsed.as_secs() > 5 {
-				/* If our RTT was *that* long, let's just be happy we even got one connection */
+				// If our RTT was *that* long, let's just be happy we even got one connection
 				std::time::Duration::from_secs(1)
 			} else {
 				elapsed.mul_f32(0.3)
 			};
 			let _ = crate::util::timeout(to_wait, async {
 				while let Some((new_transit, new_finalizer, new_conn_info)) = connection_stream.next().await {
-					/* We already got a connection, so we're only interested in direct ones */
+					// We already got a connection, so we're only interested in direct ones
 					if new_conn_info.conn_type == ConnectionType::Direct {
 						transit = new_transit;
 						finalizer = new_finalizer;
@@ -898,9 +872,8 @@ impl TransitConnector {
 			tracing::debug!("Established direct transit connection");
 		}
 
-		/* Cancel all remaining non-finished handshakes. We could send "nevermind" to explicitly tell
-		 * the other side (probably, this is mostly for relay server statistics), but eeh, nevermind :)
-		 */
+		// Cancel all remaining non-finished handshakes. We could send "nevermind" to explicitly tell
+		// the other side (probably, this is mostly for relay server statistics), but eeh, nevermind :)
 		std::mem::drop(connection_stream);
 
 		let (tx, rx) = finalizer.handshake_finalize(&mut transit).await.map_err(|e| {
@@ -911,9 +884,7 @@ impl TransitConnector {
 		Ok((Transit { socket: transit, tx, rx }, conn_info))
 	}
 
-	/**
-	 * Connect to the other side, as receiver
-	 */
+	// Connect to the other side, as receiver
 	async fn follower_connect(
 		self, transit_key: Key<TransitKey>, their_abilities: Abilities, their_hints: Arc<Hints>,
 	) -> Result<(Transit, TransitInfo), TransitConnectError> {
@@ -962,28 +933,23 @@ impl TransitConnector {
 			}
 		};
 
-		/* Cancel all remaining non-finished handshakes. We could send "nevermind" to explicitly tell
-		 * the other side (probably, this is mostly for relay server statistics), but eeh, nevermind :)
-		 */
+		// Cancel all remaining non-finished handshakes. We could send "nevermind" to explicitly tell
+		// the other side (probably, this is mostly for relay server statistics), but eeh, nevermind :)
 		std::mem::drop(connection_stream);
 
 		transit
 	}
 
-	/** Try to establish a connection with the peer.
-	 *
-	 * This encapsulates code that is common to both the leader and the follower.
-	 *
-	 * ## Panics
-	 *
-	 * If the receiving end of the channel for the results is closed before all futures in the return
-	 * value are cancelled/dropped.
-	 */
+	// Try to establish a connection with the peer.
+	// This encapsulates code that is common to both the leader and the follower.
+	// ## Panics
+	// If the receiving end of the channel for the results is closed before all futures in the return
+	// value are cancelled/dropped.
 	fn connect_inner(
 		is_leader: bool, transit_key: Arc<Key<TransitKey>>, our_abilities: Abilities, our_hints: Arc<Hints>, their_abilities: Abilities,
 		their_hints: Arc<Hints>, #[cfg(not(target_family = "wasm"))] sockets: Option<(MaybeConnectedSocket, TcpListener)>,
 	) -> impl Stream<Item = Result<HandshakeResult, TransitHandshakeError>> + 'static {
-		/* Have Some(sockets) → Can direct */
+		// Have Some(sockets) → Can direct
 		#[cfg(not(target_family = "wasm"))]
 		assert!(sockets.is_none() || our_abilities.can_direct());
 
@@ -998,9 +964,8 @@ impl TransitConnector {
 		// 8. listen for connections on the port and simultaneously try connecting to the peer port.
 		let tside = Arc::new(hex::encode(rand::random::<[u8; 8]>()));
 
-		/* Iterator of futures yielding a connection. They'll be then mapped with the handshake, collected into
-		 * a Vec and polled concurrently.
-		 */
+		// Iterator of futures yielding a connection. They'll be then mapped with the handshake, collected into
+		// a Vec and polled concurrently.
 		#[cfg(not(target_family = "wasm"))]
 		use futures::future::BoxFuture;
 		#[cfg(target_family = "wasm")]
@@ -1014,14 +979,14 @@ impl TransitConnector {
 		#[cfg(not(target_family = "wasm"))]
 		if our_abilities.can_direct() && their_abilities.can_direct() {
 			let local_addr = socket.map(|socket| Arc::new(socket.local_addr().expect("This is guaranteed to be an IP socket")));
-			/* Connect to each hint of the peer */
+			// Connect to each hint of the peer
 			connectors = Box::new(
 				connectors.chain(
 					their_hints
 						.direct_tcp
 						.clone()
 						.into_iter()
-						/* Nobody should have that many IP addresses, even with NATing */
+						// Nobody should have that many IP addresses, even with NATing
 						.take(50)
 						.map(move |hint| transport::connect_tcp_direct(local_addr.clone(), hint))
 						.map(|fut| Box::pin(fut) as ConnectorFuture),
@@ -1029,9 +994,9 @@ impl TransitConnector {
 			) as BoxIterator<ConnectorFuture>;
 		}
 
-		/* Relay hints. Make sure that both sides advertise it, since it is fine to support it without providing own hints. */
+		// Relay hints. Make sure that both sides advertise it, since it is fine to support it without providing own hints.
 		if our_abilities.can_relay() && their_abilities.can_relay() {
-			/* Collect intermediate into HashSet for deduplication */
+			// Collect intermediate into HashSet for deduplication
 			let mut relay_hints = Vec::<RelayHint>::new();
 			relay_hints.extend(our_hints.relay.iter().take(2).cloned());
 			for hint in their_hints.relay.iter().take(2).cloned() {
@@ -1044,18 +1009,17 @@ impl TransitConnector {
 					connectors.chain(
 						relay_hints
 							.into_iter()
-							/* A hint may have multiple addresses pointing towards the server. This may be multiple
-							 * domain aliases or different ports or an IPv6 or IPv4 address. We only need
-							 * to connect to one of them, since they are considered equivalent. However, we
-							 * also want to be prepared for the rare case of one failing, thus we try to reach
-							 * up to three different addresses. To not flood the system with requests, we
-							 * start them in a 5 seconds interval spread. If one of them succeeds, the remaining ones
-							 * will be cancelled anyways. Note that a hint might not necessarily be reachable via TCP.
-							 */
+							// A hint may have multiple addresses pointing towards the server. This may be multiple
+							// domain aliases or different ports or an IPv6 or IPv4 address. We only need
+							// to connect to one of them, since they are considered equivalent. However, we
+							// also want to be prepared for the rare case of one failing, thus we try to reach
+							// up to three different addresses. To not flood the system with requests, we
+							// start them in a 5 seconds interval spread. If one of them succeeds, the remaining ones
+							// will be cancelled anyways. Note that a hint might not necessarily be reachable via TCP.
 							.flat_map(|hint| {
-								/* If the hint has no name, take the first domain name as fallback */
+								// If the hint has no name, take the first domain name as fallback
 								let name = hint.name.or_else(|| {
-									/* Try to parse as IP address. We are only interested in human readable names (the IP address will be printed anyways) */
+									// Try to parse as IP address. We are only interested in human readable names (the IP address will be printed anyways)
 									hint.tcp
 										.iter()
 										.filter_map(|hint| match url::Host::parse(&hint.hostname) {
@@ -1081,18 +1045,17 @@ impl TransitConnector {
 					connectors.chain(
 						relay_hints
 							.into_iter()
-							/* A hint may have multiple addresses pointing towards the server. This may be multiple
-							 * domain aliases or different ports or an IPv6 or IPv4 address. We only need
-							 * to connect to one of them, since they are considered equivalent. However, we
-							 * also want to be prepared for the rare case of one failing, thus we try to reach
-							 * up to three different addresses. To not flood the system with requests, we
-							 * start them in a 5 seconds interval spread. If one of them succeeds, the remaining ones
-							 * will be cancelled anyways. Note that a hint might not necessarily be reachable via TCP.
-							 */
+							// A hint may have multiple addresses pointing towards the server. This may be multiple
+							// domain aliases or different ports or an IPv6 or IPv4 address. We only need
+							// to connect to one of them, since they are considered equivalent. However, we
+							// also want to be prepared for the rare case of one failing, thus we try to reach
+							// up to three different addresses. To not flood the system with requests, we
+							// start them in a 5 seconds interval spread. If one of them succeeds, the remaining ones
+							// will be cancelled anyways. Note that a hint might not necessarily be reachable via TCP.
 							.flat_map(|hint| {
-								/* If the hint has no name, take the first domain name as fallback */
+								// If the hint has no name, take the first domain name as fallback
 								let name = hint.name.or_else(|| {
-									/* Try to parse as IP address. We are only interested in human readable names (the IP address will be printed anyways) */
+									// Try to parse as IP address. We are only interested in human readable names (the IP address will be printed anyways)
 									hint.tcp
 										.iter()
 										.filter_map(|hint| match url::Host::parse(&hint.hostname) {
@@ -1113,7 +1076,7 @@ impl TransitConnector {
 			}
 		}
 
-		/* Do a handshake on all our found connections */
+		// Do a handshake on all our found connections
 		let transit_key2 = transit_key.clone();
 		let tside2 = tside.clone();
 		let cryptor2 = cryptor.clone();
@@ -1133,7 +1096,7 @@ impl TransitConnector {
 				.map(|fut| Box::pin(fut) as BoxFuture<Result<HandshakeResult, TransitHandshakeError>>),
 		) as BoxIterator<BoxFuture<Result<HandshakeResult, TransitHandshakeError>>>;
 
-		/* Also listen on some port just in case. */
+		// Also listen on some port just in case.
 		#[cfg(not(target_family = "wasm"))]
 		if let Some(listener) = listener {
 			connectors = Box::new(
@@ -1168,26 +1131,23 @@ impl TransitConnector {
 	}
 }
 
-/**
- * An established Transit connection.
- *
- * While you can manually send and receive bytes over the TCP stream, this is not recommended as the transit protocol
- * also specifies an encrypted record pipe that does all the hard work for you. See the provided methods.
- */
+// An established Transit connection.
+// While you can manually send and receive bytes over the TCP stream, this is not recommended as the transit protocol
+// also specifies an encrypted record pipe that does all the hard work for you. See the provided methods.
 pub struct Transit {
-	/** Raw transit connection */
+	// Raw transit connection
 	socket: Box<dyn TransitTransport>,
 	tx: Box<dyn crypto::TransitCryptoEncrypt>,
 	rx: Box<dyn crypto::TransitCryptoDecrypt>,
 }
 
 impl Transit {
-	/** Receive and decrypt one message from the other side. */
+	// Receive and decrypt one message from the other side.
 	pub async fn receive_record(&mut self) -> Result<Box<[u8]>, TransitError> {
 		self.rx.decrypt(&mut self.socket).await
 	}
 
-	/** Send an encrypted message to the other side */
+	// Send an encrypted message to the other side
 	pub async fn send_record(&mut self, plaintext: &[u8]) -> Result<(), TransitError> {
 		assert!(!plaintext.is_empty());
 		self.tx.encrypt(&mut self.socket, plaintext).await
@@ -1199,7 +1159,7 @@ impl Transit {
 		self.socket.flush().await.map_err(Into::into)
 	}
 
-	/** Convert the transit connection to a [`Stream`]/[`Sink`] pair */
+	// Convert the transit connection to a [`Stream`]/[`Sink`] pair
 	#[cfg(not(target_family = "wasm"))]
 	#[expect(clippy::type_complexity)]
 	pub fn split(
@@ -1222,15 +1182,12 @@ impl Transit {
 
 type HandshakeResult = (Box<dyn TransitTransport>, Box<dyn crypto::TransitCryptoInitFinalizer>, TransitInfo);
 
-/**
- * Do a transit handshake exchange, to establish a direct connection.
- *
- * This automatically does the relay handshake first if necessary. On the follower
- * side, the future will successfully run to completion if a connection could be
- * established. On the leader side, the handshake is not 100% completed: the caller
- * must write `Ok\n` into the stream that should be used (and optionally `Nevermind\n`
- * into all others).
- */
+// Do a transit handshake exchange, to establish a direct connection.
+// This automatically does the relay handshake first if necessary. On the follower
+// side, the future will successfully run to completion if a connection could be
+// established. On the leader side, the handshake is not 100% completed: the caller
+// must write `Ok\n` into the stream that should be used (and optionally `Nevermind\n`
+// into all others).
 async fn handshake_exchange(
 	is_leader: bool, tside: Arc<String>, mut socket: Box<dyn TransitTransport>, host_type: &ConnectionType, cryptor: &dyn crypto::TransitCryptoInit,
 	key: Arc<Key<TransitKey>>,

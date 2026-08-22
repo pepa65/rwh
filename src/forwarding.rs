@@ -42,9 +42,7 @@ pub const APP_CONFIG: crate::AppConfig<AppVersion> = crate::AppConfig::<AppVersi
 	app_version: AppVersion { transit_abilities: transit::Abilities::ALL, other: serde_json::Value::Null },
 };
 
-/**
- * The application specific version information for this protocol.
- */
+/// The application specific version information for this protocol.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AppVersion {
 	/// Our transit abilities
@@ -144,7 +142,7 @@ pub async fn serve(
 	let peer_version: AppVersion = serde_json::from_value(wormhole.peer_version().clone())?;
 	let connector = transit::init(our_version.transit_abilities, Some(peer_version.transit_abilities), relay_hints).await?;
 
-	/* Send our transit hints */
+	// Send our transit hints
 	wormhole.send_json(&PeerMessage::Transit { hints: (**connector.our_hints()).clone() }).await?;
 
 	let targets: HashMap<String, (Option<url::Host>, u16)> = targets
@@ -163,7 +161,7 @@ pub async fn serve(
 		})
 		.collect();
 
-	/* Receive their transit hints */
+	// Receive their transit hints
 	let their_hints: transit::Hints = match wormhole.receive_json().await?? {
 		PeerMessage::Transit { hints } => {
 			tracing::debug!("Received transit message: {:?}", hints);
@@ -197,7 +195,7 @@ pub async fn serve(
 	};
 	transit_handler(info);
 
-	/* We got a transit, now close the Wormhole */
+	// We got a transit, now close the Wormhole
 	wormhole.close().await?;
 
 	transit.send_record(&PeerMessage::Offer { addresses: targets.keys().cloned().collect() }.ser_msgpack()).await?;
@@ -212,11 +210,11 @@ pub async fn serve(
 	futures::pin_mut!(transit_rx);
 	futures::pin_mut!(cancel);
 
-	/* Main processing loop. Catch errors */
+	// Main processing loop. Catch errors
 	let result = ForwardingServe { targets, connections: HashMap::new(), historic_connections: HashSet::new(), backchannel_tx, backchannel_rx }
 		.run(&mut transit_tx, &mut transit_rx, &mut cancel)
 		.await;
-	/* If the error is not a PeerError (i.e. coming from the other side), try notifying the other side before quitting. */
+	// If the error is not a PeerError (i.e. coming from the other side), try notifying the other side before quitting.
 	match result {
 		Ok(()) => Ok(()),
 		Err(error @ ForwardingError::PeerError(_)) => Err(error),
@@ -229,14 +227,13 @@ pub async fn serve(
 
 struct ForwardingServe {
 	targets: HashMap<String, (Option<url::Host>, u16)>,
-	/* self => remote */
+	// self => remote */
 	connections: HashMap<u64, (async_task::Task<()>, futures_lite::io::WriteHalf<async_net::TcpStream>)>,
-	/* Track old connection IDs that won't be reused again. This is to distinguish race hazards where
-	 * one side closes a connection while the other one accesses it simultaneously. Despite the name, the
-	 * set also includes connections that are currently live.
-	 */
+	// Track old connection IDs that won't be reused again. This is to distinguish race hazards where
+	// one side closes a connection while the other one accesses it simultaneously. Despite the name, the
+	// set also includes connections that are currently live.
 	historic_connections: HashSet<u64>,
-	/* remote => self. (connection_id, Some=payload or None=close) */
+	// remote => self. (connection_id, Some=payload or None=close)
 	backchannel_tx: futures::channel::mpsc::Sender<(u64, Option<Vec<u8>>)>,
 	backchannel_rx: futures::channel::mpsc::Receiver<(u64, Option<Vec<u8>>)>,
 }
@@ -249,7 +246,7 @@ impl ForwardingServe {
 		tracing::debug!("Forwarding {} bytes from #{}", payload.len(), connection_id);
 		match self.connections.get_mut(&connection_id) {
 			Some((_worker, connection)) => {
-				/* On an error, log for the user and then terminate that connection */
+				// On an error, log for the user and then terminate that connection
 				if let Err(e) = connection.write_all(payload).await {
 					tracing::warn!("Forwarding to #{} failed: {}", connection_id, e);
 					self.remove_connection(transit_tx, connection_id, true).await?;
@@ -311,7 +308,7 @@ impl ForwardingServe {
 		let mut backchannel_tx = self.backchannel_tx.clone();
 		let worker = crate::util::spawn(async move {
 			let mut buffer = vec![0; 4096];
-			/* Ignore errors */
+			// Ignore errors
 			macro_rules! break_on_err {
 				($expr:expr_2021) => {
 					match $expr {
@@ -329,7 +326,7 @@ impl ForwardingServe {
 				let buffer = &buffer[..read];
 				break_on_err!(backchannel_tx.send((connection_id, Some(buffer.to_vec()))).await);
 			}
-			/* Close connection (maybe or not because of error) */
+			// Close connection (maybe or not because of error)
 			let _ = backchannel_tx.send((connection_id, None)).await;
 			backchannel_tx.disconnect();
 		});
@@ -349,7 +346,7 @@ impl ForwardingServe {
 		transit_rx: &mut (impl futures::stream::FusedStream<Item = Result<Box<[u8]>, TransitError>> + Unpin),
 		cancel: &mut (impl futures::future::FusedFuture<Output = ()> + Unpin),
 	) -> Result<(), ForwardingError> {
-		/* Event processing loop */
+		// Event processing loop
 		tracing::debug!("Entered processing loop");
 		let ret = loop {
 			futures::select! {
@@ -359,7 +356,7 @@ impl ForwardingServe {
 							self.forward(transit_tx, connection_id, &payload).await?
 						},
 						PeerMessage::Connect { target, connection_id } => {
-							/* No matter what happens, as soon as we receive the "connect" command that ID is burned. */
+							// No matter what happens, as soon as we receive the "connect" command that ID is burned.
 							self.historic_connections.insert(connection_id);
 							ensure!(
 								self.targets.contains_key(&target),
@@ -387,7 +384,7 @@ impl ForwardingServe {
 					}
 				},
 				message = self.backchannel_rx.next() => {
-					/* This channel will never run dry, since we always have at least one sender active */
+					// This channel will never run dry, since we always have at least one sender active
 					match message.unwrap() {
 						(connection_id, Some(payload)) => {
 							transit_tx.send(
@@ -404,7 +401,7 @@ impl ForwardingServe {
 						},
 					}
 				},
-				/* We are done */
+				// We are done
 				() = &mut *cancel => {
 					tracing::info!("Closing connection");
 					transit_tx.send(
@@ -446,10 +443,10 @@ pub async fn connect(
 	let connector = transit::init(our_version.transit_abilities, Some(peer_version.transit_abilities), relay_hints).await?;
 	let bind_address = bind_address.unwrap_or_else(|| std::net::IpAddr::V6("::".parse().unwrap()));
 
-	/* Send our transit hints */
+	// Send our transit hints
 	wormhole.send_json(&PeerMessage::Transit { hints: (**connector.our_hints()).clone() }).await?;
 
-	/* Receive their transit hints */
+	// Receive their transit hints
 	let their_hints: transit::Hints = match wormhole.receive_json().await?? {
 		PeerMessage::Transit { hints } => {
 			tracing::debug!("Received transit message: {:?}", hints);
@@ -483,11 +480,11 @@ pub async fn connect(
 	};
 	transit_handler(info);
 
-	/* We got a transit, now close the Wormhole */
+	// We got a transit, now close the Wormhole
 	wormhole.close().await?;
 
 	let run = async {
-		/* Receive offer and ask user */
+		// Receive offer and ask user
 
 		let addresses = match PeerMessage::de_msgpack(&transit.receive_record().await?)? {
 			PeerMessage::Offer { addresses } => addresses,
@@ -499,15 +496,14 @@ pub async fn connect(
 			}
 		};
 
-		/* Sanity check on untrusted input */
+		// Sanity check on untrusted input
 		if addresses.len() > 1024 {
 			return Err(ForwardingError::protocol("Too many forwarded ports"));
 		}
 
-		/* self => remote
-		 *                  (address, connection)
-		 * Vec<Stream<Item = (String, TcpStream)>>
-		 */
+		// self => remote
+		//                  (address, connection)
+		// Vec<Stream<Item = (String, TcpStream)>>
 		let listeners: Vec<(async_net::TcpListener, u16, std::rc::Rc<std::string::String>)> =
 			futures::stream::iter(addresses.into_iter().map(Rc::new).zip(custom_ports.iter().copied().chain(std::iter::repeat(0))))
 				.then(|(address, port)| async move {
@@ -557,7 +553,7 @@ impl ConnectOffer {
 		futures::pin_mut!(transit_rx);
 		futures::pin_mut!(cancel);
 
-		/* Error handling catcher (see below) */
+		// Error handling catcher (see below)
 		let run = async {
 			let (backchannel_tx, backchannel_rx) = futures::channel::mpsc::channel::<(u64, Option<Vec<u8>>)>(20);
 
@@ -593,7 +589,6 @@ impl ConnectOffer {
 	}
 
 	/// Reject the offer
-	///
 	/// This will send an error message to the other side so that it knows the transfer failed.
 	pub async fn reject(mut self) -> Result<(), ForwardingError> {
 		self.transit.send_record(&PeerMessage::Error("transfer rejected".into()).ser_msgpack()).await?;
@@ -604,12 +599,12 @@ impl ConnectOffer {
 
 struct ForwardConnect<I> {
 	//transit: &'a mut transit::Transit,
-	/* when can I finally store an `impl Trait` in a struct? */
+	// when can I finally store an `impl Trait` in a struct?
 	incoming: I,
-	/* Our next unique connection_id */
+	// Our next unique connection_id
 	connection_counter: u64,
 	connections: HashMap<u64, (async_task::Task<()>, futures_lite::io::WriteHalf<async_net::TcpStream>)>,
-	/* application => self. (connection_id, Some=payload or None=close) */
+	// application => self. (connection_id, Some=payload or None=close)
 	backchannel_tx: futures::channel::mpsc::Sender<(u64, Option<Vec<u8>>)>,
 	backchannel_rx: futures::channel::mpsc::Receiver<(u64, Option<Vec<u8>>)>,
 }
@@ -624,7 +619,7 @@ where
 		tracing::debug!("Forwarding {} bytes from #{}", payload.len(), connection_id);
 		match self.connections.get_mut(&connection_id) {
 			Some((_worker, connection)) => {
-				/* On an error, log for the user and then terminate that connection */
+				// On an error, log for the user and then terminate that connection
 				if let Err(e) = connection.write_all(payload).await {
 					tracing::warn!("Forwarding to #{} failed: {}", connection_id, e);
 					self.remove_connection(transit_tx, connection_id, true).await?;
@@ -672,7 +667,7 @@ where
 
 		let worker = crate::util::spawn(async move {
 			let mut buffer = vec![0; 4096];
-			/* Ignore errors */
+			// Ignore errors
 			macro_rules! break_on_err {
 				($expr:expr_2021) => {
 					match $expr {
@@ -690,7 +685,7 @@ where
 				let buffer = &buffer[..read];
 				break_on_err!(backchannel_tx.send((connection_id, Some(buffer.to_vec()))).await);
 			}
-			/* Close connection (maybe or not because of error) */
+			// Close connection (maybe or not because of error)
 			let _ = backchannel_tx.send((connection_id, None)).await;
 			backchannel_tx.disconnect();
 		});
@@ -711,7 +706,7 @@ where
 		transit_rx: &mut (impl futures::stream::FusedStream<Item = Result<Box<[u8]>, TransitError>> + Unpin),
 		cancel: &mut (impl futures::future::FusedFuture<Output = ()> + Unpin),
 	) -> Result<(), ForwardingError> {
-		/* Event processing loop */
+		// Event processing loop
 		tracing::debug!("Entered processing loop");
 		let ret = loop {
 			futures::select! {
@@ -741,7 +736,7 @@ where
 					}
 				},
 				message = self.backchannel_rx.next() => {
-					/* This channel will never run dry, since we always have at least one sender active */
+					// This channel will never run dry, since we always have at least one sender active
 					match message.unwrap() {
 						(connection_id, Some(payload)) => {
 							transit_tx.send(
@@ -762,7 +757,7 @@ where
 					let (target, connection): (Rc<String>, async_net::TcpStream) = connection.unwrap()?;
 					self.spawn_connection(transit_tx, target, connection).await?;
 				},
-				/* We are done */
+				// We are done
 				() = &mut *cancel => {
 					tracing::info!("Closing connection");
 					transit_tx.send(
@@ -781,32 +776,41 @@ where
 	}
 }
 
-/** Serialization struct for this protocol */
+// Serialization struct for this protocol
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 enum PeerMessage {
-	/** Offer some destinations to be forwarded to.
-	 * forwarder -> forwardee only
-	 */
-	Offer { addresses: Vec<String> },
-	/** Forward a new connection.
-	 * forwardee -> forwarder only
-	 */
-	Connect { target: String, connection_id: u64 },
-	/** End a forwarded connection.
-	 * Any direction. Errors or the reason why the connection is closed
-	 * are not forwarded.
-	 */
-	Disconnect { connection_id: u64 },
-	/** Forward some bytes for a connection. */
-	Forward { connection_id: u64, payload: Vec<u8> },
-	/** Close the whole session */
+	// Offer some destinations to be forwarded to.
+	// forwarder -> forwardee only
+	Offer {
+		addresses: Vec<String>,
+	},
+	// Forward a new connection.
+	// forwardee -> forwarder only
+	Connect {
+		target: String,
+		connection_id: u64,
+	},
+	// End a forwarded connection.
+	// Any direction. Errors or the reason why the connection is closed
+	// are not forwarded.
+	Disconnect {
+		connection_id: u64,
+	},
+	// Forward some bytes for a connection.
+	Forward {
+		connection_id: u64,
+		payload: Vec<u8>,
+	},
+	// Close the whole session
 	Close,
-	/** Tell the other side you got an error */
+	// Tell the other side you got an error
 	Error(String),
-	/** Used to set up a transit channel */
-	Transit { hints: transit::Hints },
+	// Used to set up a transit channel
+	Transit {
+		hints: transit::Hints,
+	},
 	#[serde(other)]
 	Unknown,
 }

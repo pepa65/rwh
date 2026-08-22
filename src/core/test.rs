@@ -89,7 +89,7 @@ async fn test_connect_with_unknown_code_and_no_allocate_fails() {
 	}
 }
 
-/** Generate common offers for testing, together with a pre-made answer that checks the received content */
+// Generate common offers for testing, together with a pre-made answer that checks the received content
 async fn file_offers() -> eyre::Result<Vec<(transfer::offer::OfferSend, transfer::offer::OfferAccept)>> {
 	async fn offer(name: &str) -> eyre::Result<(transfer::offer::OfferSend, transfer::offer::OfferAccept)> {
 		#[cfg(target_family = "wasm")]
@@ -179,14 +179,14 @@ async fn file_offers() -> eyre::Result<Vec<(transfer::offer::OfferSend, transfer
 
 	Ok(vec![
 		offer("example-file.bin").await?,
-		/* Empty file: https://github.com/magic-wormhole/magic-wormhole.rs/issues/160 */
+		// Empty file: https://github.com/magic-wormhole/magic-wormhole.rs/issues/160
 		offer("example-file-empty").await?,
-		/* 4k file: https://github.com/magic-wormhole/magic-wormhole.rs/issues/152 */
+		// 4k file: https://github.com/magic-wormhole/magic-wormhole.rs/issues/152
 		offer("example-file-4096.bin").await?,
 	])
 }
 
-/** Send a file using the Rust implementation. This does not guarantee compatibility with Python! ;) */
+// Send a file using the Rust implementation. This does not guarantee compatibility with Python! ;)
 #[cfg(feature = "transfer")]
 #[apply(test)]
 // TODO Wasm test disabled, it crashes
@@ -241,8 +241,7 @@ async fn test_file_rust2rust() {
 	}
 }
 
-/** Test the functionality used by the `send-many` subcommand.
- */
+// Test the functionality used by the `send-many` subcommand.
 #[cfg(feature = "transfer")]
 #[apply(test)]
 // TODO Wasm test disabled, it crashes
@@ -260,13 +259,13 @@ async fn test_send_many() {
 		file_offers().await.map(|mut vec| vec.remove(0).1)
 	}
 
-	/* Send many */
+	// Send many
 	let sender_code = code.clone();
 	let senders = crate::util::spawn(async move {
 		// let mut senders = Vec::<async_task::Task<std::result::Result<std::vec::Vec<u8>, eyre::Error>>>::new();
 		let mut senders: Vec<async_task::Task<eyre::Result<()>>> = Vec::new();
 
-		/* The first time, we reuse the current session for sending */
+		// The first time, we reuse the current session for sending
 		{
 			tracing::info!("Sending file #{}", 0);
 			let wormhole = crate::Wormhole::connect(mailbox).await?;
@@ -310,7 +309,7 @@ async fn test_send_many() {
 	// Sleep one second
 	async_io::Timer::after(std::time::Duration::from_secs(1)).await;
 
-	/* Receive many */
+	// Receive many
 	for i in 0..5usize {
 		tracing::info!("Receiving file #{}", i);
 		let wormhole = crate::Wormhole::connect(MailboxConnection::connect(transfer::APP_CONFIG.id(TEST_APPID), code.clone(), true).await.unwrap())
@@ -347,7 +346,7 @@ async fn test_wrong_code() {
 		code_tx.send(code.nameplate()).unwrap();
 
 		let result = crate::Wormhole::connect(mailbox).await;
-		/* This should have failed, due to the wrong code */
+		// This should have failed, due to the wrong code
 		assert!(result.is_err());
 	});
 
@@ -357,7 +356,7 @@ async fn test_wrong_code() {
 		let result = crate::Wormhole::connect(
 			MailboxConnection::connect(
 				APP_CONFIG,
-				/* Making a wrong code here by appending nonsense */
+				// Making a wrong code here by appending nonsense
 				Code::from_components(nameplate, "foo-bar".parse().unwrap()),
 				true,
 			)
@@ -366,14 +365,14 @@ async fn test_wrong_code() {
 		)
 		.await;
 
-		/* This should have failed, due to the wrong code */
+		// This should have failed, due to the wrong code
 		assert!(result.is_err());
 	});
 
 	timeout(TIMEOUT, (sender_task, receiver_task).join()).await.unwrap();
 }
 
-/** Connect three people to the party and watch it explode … gracefully */
+// Connect three people to the party and watch it explode … gracefully
 #[apply(test)]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
 async fn test_crowded() {
@@ -407,7 +406,7 @@ async fn test_connect_with_code_expecting_nameplate() {
 }
 
 fn generate_random_code() -> Code {
-	let mut rng = rand::thread_rng();
+	let mut rng = rand::rng();
 	let nameplate_string = format!("{}-guitarist-revenge", rng.gen_range(1000..10000));
 	Code::from_str(&nameplate_string).unwrap()
 }

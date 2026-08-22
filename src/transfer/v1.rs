@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use futures::{
 	StreamExt, TryFutureExt,
 	io::{AsyncReadExt, AsyncWriteExt},
@@ -34,9 +35,7 @@ pub enum AnswerMessage {
 	FileAck(String),
 }
 
-/**
- * A set of hints for both sides to find each other
- */
+// A set of hints for both sides to find each other
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct TransitV1 {
@@ -81,7 +80,7 @@ pub(crate) async fn send(
 		let (file_name, file) = offer.content.into_iter().next().unwrap();
 		let (mut file, file_size) = match file {
 			OfferSendEntry::RegularFile { content, size } => {
-				/* This must be split into two statements to appease the borrow checker (unfortunate side effect of borrow-through) */
+				// This must be split into two statements to appease the borrow checker (unfortunate side effect of borrow-through)
 				let content = content();
 				let content = content.await?;
 				(content, size)
@@ -175,10 +174,9 @@ pub(crate) async fn send_folder(
 		tracing::debug!("Sending transit message '{:?}", connector.our_hints());
 		wormhole.send_json(&PeerMessage::transit_v1(*connector.our_abilities(), (**connector.our_hints()).clone())).await?;
 
-		/* We need to know the length of what we are going to send in advance. So we already build
-		 * all the headers of our file now but without the contents. We know that a file is
-		 * header + contents + padding
-		 */
+		// We need to know the length of what we are going to send in advance. So we already build
+		// all the headers of our file now but without the contents. We know that a file is
+		// header + contents + padding
 		tracing::debug!("Estimating the file size");
 
 		// TODO try again but without pinning
@@ -190,12 +188,12 @@ pub(crate) async fn send_folder(
 
 		type WrappedDataFut = BoxFuture<'static, IoResult<Box<dyn AsyncRead + Unpin + Send>>>;
 
-		/* Type tetris :) */
+		// Type tetris :)
 		fn wrap(buffer: impl AsRef<[u8]> + Unpin + Send + 'static) -> WrappedDataFut {
 			Box::pin(ready(IoResult::Ok(Box::new(Cursor::new(buffer)) as Box<dyn AsyncRead + Unpin + Send>))) as _
 		}
 
-		/* Walk our offer recursively, concatenate all our readers into a stream that will build the tar file */
+		// Walk our offer recursively, concatenate all our readers into a stream that will build the tar file
 		fn create_offer(
 			mut total_content: Vec<WrappedDataFut>, total_size: &mut u64, offer: OfferSendEntry, path: &mut Vec<String>,
 		) -> IoResult<Vec<WrappedDataFut>> {
@@ -233,13 +231,13 @@ pub(crate) async fn send_folder(
 		let mut total_size = 0;
 		let mut content = create_offer(Vec::new(), &mut total_size, folder, &mut vec![folder_name.clone()])?;
 
-		/* Finish tar file */
+		// Finish tar file
 		total_size += 1024;
 		content.push(wrap([0; 1024]));
 
 		let content = futures::stream::iter(content).then(|content| content);
 
-		/* Convert to stream */
+		// Convert to stream
 
 		// Send file offer message.
 		tracing::debug!("Sending file offer ({total_size} bytes)");
@@ -292,14 +290,10 @@ pub(crate) async fn send_folder(
 	cancel::handle_run_result(wormhole, result).await
 }
 
-/**
- * Wait for a file offer from the other side
- *
- * This method waits for an offer message and builds up a [`ReceiveRequest`](ReceiveRequest).
- * It will also start building a TCP connection to the other side using the transit protocol.
- *
- * Returns `None` if the task got cancelled.
- */
+// Wait for a file offer from the other side
+// This method waits for an offer message and builds up a [`ReceiveRequest`](ReceiveRequest).
+// It will also start building a TCP connection to the other side using the transit protocol.
+// Returns `None` if the task got cancelled.
 pub async fn request(
 	mut wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, transit_abilities: transit::Abilities, cancel: impl Future<Output = ()>,
 ) -> Result<Option<ReceiveRequest>, TransferError> {
@@ -349,11 +343,9 @@ pub async fn request(
 	})
 }
 
-/**
- * A pending files send offer from the other side
- *
- * You *should* consume this object, either by calling [`accept`](ReceiveRequest::accept) or [`reject`](ReceiveRequest::reject).
- */
+// A pending files send offer from the other side
+//
+// You *should* consume this object, either by calling [`accept`](ReceiveRequest::accept) or [`reject`](ReceiveRequest::reject).
 #[must_use]
 pub struct ReceiveRequest {
 	wormhole: Wormhole,
@@ -385,11 +377,8 @@ impl ReceiveRequest {
 		Self { wormhole, connector, file_name, filesize, offer, their_abilities, their_hints }
 	}
 
-	/**
-	 * Accept the file offer
-	 *
-	 * This will transfer the file and save it on disk.
-	 */
+	// Accept the file offer
+	// This will transfer the file and save it on disk.
 	pub async fn accept<F, G, W>(
 		mut self, transit_handler: G, progress_handler: F, content_handler: &mut W, cancel: impl Future<Output = ()>,
 	) -> Result<(), TransferError>
@@ -424,11 +413,8 @@ impl ReceiveRequest {
 		cancel::handle_run_result(self.wormhole, result).await
 	}
 
-	/**
-	 * Reject the file offer
-	 *
-	 * This will send an error message to the other side so that it knows the transfer failed.
-	 */
+	// Reject the file offer
+	// This will send an error message to the other side so that it knows the transfer failed.
 	pub async fn reject(mut self) -> Result<(), TransferError> {
 		self.wormhole.send_json(&PeerMessage::error_message("transfer rejected")).await?;
 		self.wormhole.close().await?;
@@ -443,7 +429,6 @@ impl ReceiveRequest {
 	}
 
 	/// The name of the offered file.
-	///
 	/// This is untrusted and unverified input.
 	pub fn file_name(&self) -> String {
 		self.file_name.clone()
@@ -495,11 +480,6 @@ pub(crate) async fn send_records<'a>(
 
 			// sha256 of the input
 			hasher.update(&plaintext[..n]);
-
-			/* Don't do this. The EOF check above is sufficient */
-			// if n < 4096 {
-			//     break;
-			// }
 		}
 	}
 	transit.flush().await?;
@@ -570,7 +550,7 @@ where
 
 /// Custom functions from the `tar` crate to access internals
 mod tar_helper {
-	/* Imports may depend on target platform */
+	// Imports may depend on target platform
 	use std::{
 		borrow::Cow,
 		io::{self, Read, Write},

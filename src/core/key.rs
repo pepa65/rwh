@@ -24,24 +24,17 @@ impl KeyPurpose for WormholeKey {}
 pub(crate) struct GenericKey;
 impl KeyPurpose for GenericKey {}
 
-/**
- * The symmetric encryption key used to communicate with the other side.
- *
- * You don't need to do any crypto, but you might need it to derive subkeys for sub-protocols.
- */
+// The symmetric encryption key used to communicate with the other side.
+// You don't need to do any crypto, but you might need it to derive subkeys for sub-protocols.
 #[derive(Debug, Clone, derive_more::Display)]
 #[display("{:?}", _0)]
 pub struct Key<P: KeyPurpose>(Box<secretbox::Key>, std::marker::PhantomData<P>);
 
 impl Key<WormholeKey> {
-	/**
-	 * Derive the sub-key used for transit
-	 *
-	 * This one's a bit special, since the Wormhole's AppID is included in the purpose. Different kinds of applications
-	 * can't talk to each other, not even accidentally, by design.
-	 *
-	 * The new key is derived with the `"{appid}/transit-key"` purpose.
-	 */
+	// Derive the sub-key used for transit
+	// This one's a bit special, since the Wormhole's AppID is included in the purpose. Different kinds of applications
+	// can't talk to each other, not even accidentally, by design.
+	// The new key is derived with the `"{appid}/transit-key"` purpose.
 	#[cfg(feature = "transit")]
 	pub(crate) fn derive_transit_key(&self, appid: &AppID) -> Key<crate::transit::TransitKey> {
 		let transit_purpose = format!("{appid}/transit-key");
@@ -62,9 +55,7 @@ impl<P: KeyPurpose> Key<P> {
 		hex::encode(*self.0)
 	}
 
-	/**
-	 * Derive a new sub-key from this one
-	 */
+	// Derive a new sub-key from this one
 	pub fn derive_subkey_from_purpose<NewP: KeyPurpose>(&self, purpose: &str) -> Key<NewP> {
 		Key(Box::new(derive_key(&self.0, purpose.as_bytes())), std::marker::PhantomData)
 	}
@@ -89,7 +80,6 @@ struct PhaseMessage {
 }
 
 /// TODO doc
-///
 /// The "password" usually is the code, but it needs not to. The only requirement
 /// is that both sides use the same value, and agree on that.
 pub fn make_pake(password: &str, appid: &AppID) -> (Spake2<Ed25519Group>, Vec<u8>) {
@@ -116,10 +106,6 @@ impl VersionsMessage {
 	pub fn set_app_versions(&mut self, versions: serde_json::Value) {
 		self.app_versions = versions;
 	}
-
-	// pub fn add_resume_ability(&mut self, _resume: ()) {
-	//     self.abilities.push("resume-v1".into())
-	// }
 }
 
 pub fn build_version_msg(side: &MySide, key: &secretbox::Key, versions: &VersionsMessage) -> (Phase, Vec<u8>) {
@@ -215,9 +201,8 @@ mod test {
 		let dk1 = derive_key(&main, b"purpose1");
 		assert_eq!(hex::encode(dk1), "835b5df80ce9ca46908e8524fb308649122cfbcefbeaa7e65061c6ef08ee1b2a");
 
-		/* The API doesn't support non-standard length keys anymore.
-		 * But we may want to add that back in in the future.
-		 */
+		// The API doesn't support non-standard length keys anymore.
+		// But we may want to add that back in in the future.
 		// let dk2 = derive_key(&main, b"purpose2", 10);
 		// assert_eq!(hex::encode(dk2), "f2238e84315b47eb6279");
 	}
