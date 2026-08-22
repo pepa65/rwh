@@ -297,8 +297,7 @@ pub(crate) async fn send_folder(
                     );
                     total_content.push(Box::pin(content) as _);
                     total_content.push(wrap(padding));
-                }
-                // OfferSendEntry::Symlink { .. } => todo!(),
+                } // OfferSendEntry::Symlink { .. } => todo!(),
             }
             Ok(total_content)
         }

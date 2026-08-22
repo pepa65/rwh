@@ -341,8 +341,7 @@ impl<T> OfferEntry<T> {
             }
             Self::RegularFile { content, size } => {
                 Box::new(std::iter::once((vec![], content, *size))) as Box<dyn Iterator<Item = _>>
-            }
-            // Self::Symlink { .. } => Box::new(std::iter::empty()) as Box<dyn Iterator<Item = _>>,
+            } // Self::Symlink { .. } => Box::new(std::iter::empty()) as Box<dyn Iterator<Item = _>>,
         }
     }
 
@@ -459,10 +458,9 @@ impl<T: 'static + Send> OfferEntry<T> {
             Self::RegularFile { content, size } => {
                 Box::new(std::iter::once((vec![], content, size)))
                     as Box<dyn Iterator<Item = _> + Send>
-            }
-            // Self::Symlink { .. } => {
-            //     Box::new(std::iter::empty()) as Box<dyn Iterator<Item = _> + Send>
-            // },
+            } // Self::Symlink { .. } => {
+              //     Box::new(std::iter::empty()) as Box<dyn Iterator<Item = _> + Send>
+              // },
         }
     }
 }
