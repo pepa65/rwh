@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/badge/License-EUPLv1.2-blue.svg)](https://github.com/pepa65/rwh/blob/main/LICENSE)
 [![downloads](https://img.shields.io/crates/d/rwh.svg)](https://crates.io/crates/rwh)
 
-# rwh 0.9.0
+# rwh 0.9.1
 **Rusty Wormhole - Safe filetransfer through magic-wormhole**
 
 * See <http://magic-wormhole.io/>
@@ -14,8 +14,68 @@
 * Repo: <https://github.com/pepa65/rwh>
 * License: EUPL v1.2 or later
 
+## Install
+### Install standalone single-binary
+```
+wget https://github.com/pepa65/rwh/releases/download/0.9.1/rwh
+sudo chown root:root rwh
+sudo chmod +x
+sudo mv qr /usr/local/bin/
+```
 
+### Install with cargo
+If not installed yet, install a **Rust toolchain**, see https://www.rust-lang.org/tools/install
 
+#### Direct from crates.io
+`cargo install rwh`
+
+#### Direct from repo
+`cargo install --git https://github.com/pepa65/rwh`
+
+#### Static build (avoiding GLIBC incompatibilities)
+```
+git clone https://github.com/pepa65/rwh
+cd rwh
+rustup target add x86_64-unknown-linux-musl
+cargo rel  # Alias in .cargo/config.toml
+```
+
+The binaries will be in `target/x86_64-unknown-linux-musl/release/`
+
+### Install with cargo-binstall
+Even without a full Rust toolchain, rust binaries can be installed with the static binary `cargo-binstall`:
+
+```
+# Install cargo-binstall for Linux x86_64
+# (Other versions are available at https://crates.io/crates/cargo-binstall)
+wget github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz
+tar xf cargo-binstall-x86_64-unknown-linux-musl.tgz
+sudo chown root:root cargo-binstall
+sudo mv cargo-binstall /usr/local/bin/
+```
+
+Install the binaries for linux-x86_64 (musl): `cargo-binstall eqr`
+
+The binaries will be installed into `~/.cargo/bin/` which still needs to be added to `PATH`!
+
+## Usage
+```
+rwh 0.9.1 - Safe filetransfer through magic-wormhole
+Usage: rwh [OPTIONS] <COMMAND>
+Commands:
+  send       Send a file/folder [alias: s]
+  receive    Receive a file/folder [alias: r]
+  send-many  Send a file to many recipients
+  forward    Forward ports from one machine to another
+
+Options:
+  -v, --verbose   Enable logging to stdout, for debugging purposes
+      --no-color  Disable color output
+  -h, --help      Print help
+  -V, --version   Print version
+
+Run a subcommand with `--help` to know how it's used.
+```
 
 ## Miscellaneous Information
 ### Comparison with the Python implementation
