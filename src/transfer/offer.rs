@@ -17,8 +17,7 @@ impl OfferSend {
     /// Offer a single path (file or folder)
     #[cfg(not(target_family = "wasm"))]
     pub async fn new_file_or_folder(
-        offer_name: String,
-        path: impl AsRef<Path>,
+        offer_name: String, path: impl AsRef<Path>,
     ) -> std::io::Result<Self> {
         let path = path.as_ref();
         tracing::trace!(
@@ -339,10 +338,10 @@ impl<T> OfferEntry<T> {
                     })
                 });
                 Box::new(iter) as Box<dyn Iterator<Item = _>>
-            },
+            }
             Self::RegularFile { content, size } => {
                 Box::new(std::iter::once((vec![], content, *size))) as Box<dyn Iterator<Item = _>>
-            },
+            }
             // Self::Symlink { .. } => Box::new(std::iter::empty()) as Box<dyn Iterator<Item = _>>,
         }
     }
@@ -353,7 +352,7 @@ impl<T> OfferEntry<T> {
             [start, rest @ ..] => match self {
                 Self::Directory { content, .. } => {
                     content.get(start).and_then(|inner| inner.get(rest))
-                },
+                }
                 _ => None,
             },
         }
@@ -368,7 +367,7 @@ impl<T> OfferEntry<T> {
             [start, rest @ ..] => match self {
                 Self::Directory { content, .. } => {
                     content.get(start).and_then(|inner| inner.get_file(rest))
-                },
+                }
                 _ => None,
             },
         }
@@ -378,8 +377,7 @@ impl<T> OfferEntry<T> {
     async fn create_directories(&self, target_path: &Path) -> std::io::Result<()> {
         #[inline(always)]
         fn recurse<'a, T>(
-            this: &'a OfferEntry<T>,
-            path: &'a Path,
+            this: &'a OfferEntry<T>, path: &'a Path,
         ) -> futures::future::LocalBoxFuture<'a, std::io::Result<()>> {
             Box::pin(OfferEntry::create_directories(this, path))
         }
@@ -390,7 +388,7 @@ impl<T> OfferEntry<T> {
                     recurse(file, &target_path.join(name)).await?;
                 }
                 Ok(())
-            },
+            }
             _ => Ok(()),
         }
     }
@@ -419,9 +417,7 @@ impl<T> OfferEntry<T> {
     // }
 
     fn set_content<U>(
-        &self,
-        base_path: &mut Vec<String>,
-        f: &mut impl FnMut(&[String]) -> U,
+        &self, base_path: &mut Vec<String>, f: &mut impl FnMut(&[String]) -> U,
     ) -> OfferEntry<U> {
         match self {
             OfferEntry::RegularFile { size, .. } => OfferEntry::RegularFile {
@@ -459,11 +455,11 @@ impl<T: 'static + Send> OfferEntry<T> {
                     })
                 });
                 Box::new(iter) as Box<dyn Iterator<Item = _> + Send>
-            },
+            }
             Self::RegularFile { content, size } => {
                 Box::new(std::iter::once((vec![], content, size)))
                     as Box<dyn Iterator<Item = _> + Send>
-            },
+            }
             // Self::Symlink { .. } => {
             //     Box::new(std::iter::empty()) as Box<dyn Iterator<Item = _> + Send>
             // },

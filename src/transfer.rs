@@ -161,8 +161,7 @@ pub enum TransferError {
 
 impl TransferError {
     pub(self) fn unexpected_message(
-        expected: impl Into<Box<str>>,
-        got: impl std::fmt::Display,
+        expected: impl Into<Box<str>>, got: impl std::fmt::Display,
     ) -> Self {
         Self::ProtocolUnexpectedMessage(expected.into(), got.to_string().into())
     }
@@ -282,10 +281,7 @@ impl PeerMessage {
 
     #[allow(dead_code)]
     fn offer_directory_v1(
-        name: impl Into<String>,
-        mode: impl Into<String>,
-        compressed_size: u64,
-        numbytes: u64,
+        name: impl Into<String>, mode: impl Into<String>, compressed_size: u64, numbytes: u64,
         numfiles: u64,
     ) -> Self {
         PeerMessage::Offer(v1::OfferMessage::Directory {
@@ -341,13 +337,10 @@ impl PeerMessage {
 /// Expect some amount of API breakage in the future to adapt to protocol changes and API ergonomics.
 #[cfg_attr(not(feature = "experimental-transfer-v2"), doc(hidden))]
 pub async fn send(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    transit_abilities: transit::Abilities,
-    offer: offer::OfferSend,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>,
+    transit_abilities: transit::Abilities, offer: offer::OfferSend,
     transit_handler: impl FnOnce(transit::TransitInfo),
-    progress_handler: impl FnMut(u64, u64) + 'static,
-    cancel: impl Future<Output = ()>,
+    progress_handler: impl FnMut(u64, u64) + 'static, cancel: impl Future<Output = ()>,
 ) -> Result<(), TransferError> {
     let peer_version: AppVersion = serde_json::from_value(wormhole.peer_version().clone())?;
 
@@ -393,10 +386,8 @@ pub async fn send(
  */
 #[cfg(feature = "experimental-transfer-v2")]
 pub async fn request(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    transit_abilities: transit::Abilities,
-    cancel: impl Future<Output = ()>,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>,
+    transit_abilities: transit::Abilities, cancel: impl Future<Output = ()>,
 ) -> Result<Option<ReceiveRequest>, TransferError> {
     #[cfg(feature = "experimental-transfer-v2")]
     {
@@ -433,10 +424,8 @@ pub async fn request(
     )
 )]
 pub async fn request_file(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    transit_abilities: transit::Abilities,
-    cancel: impl Future<Output = ()>,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>,
+    transit_abilities: transit::Abilities, cancel: impl Future<Output = ()>,
 ) -> Result<Option<v1::ReceiveRequest>, TransferError> {
     v1::request(wormhole, relay_hints, transit_abilities, cancel).await
 }
@@ -452,14 +441,8 @@ pub async fn request_file(
     )
 )]
 pub async fn send_file<F, N, G, H>(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    file: &mut F,
-    file_name: N,
-    file_size: u64,
-    transit_abilities: transit::Abilities,
-    transit_handler: G,
-    progress_handler: H,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, file: &mut F, file_name: N,
+    file_size: u64, transit_abilities: transit::Abilities, transit_handler: G, progress_handler: H,
     cancel: impl Future<Output = ()>,
 ) -> Result<(), TransferError>
 where
@@ -492,13 +475,8 @@ where
 )]
 #[cfg(not(target_family = "wasm"))]
 pub async fn send_file_or_folder<N, M, G, H>(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    file_path: N,
-    file_name: M,
-    transit_abilities: transit::Abilities,
-    transit_handler: G,
-    progress_handler: H,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, file_path: N, file_name: M,
+    transit_abilities: transit::Abilities, transit_handler: G, progress_handler: H,
     cancel: impl Future<Output = ()>,
 ) -> Result<(), TransferError>
 where
@@ -556,13 +534,8 @@ where
 )]
 #[cfg(not(target_family = "wasm"))]
 pub async fn send_folder<N, M, G, H>(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    folder_path: N,
-    folder_name: M,
-    transit_abilities: transit::Abilities,
-    transit_handler: G,
-    progress_handler: H,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, folder_path: N, folder_name: M,
+    transit_abilities: transit::Abilities, transit_handler: G, progress_handler: H,
     cancel: impl Future<Output = ()>,
 ) -> Result<(), TransferError>
 where
@@ -605,10 +578,7 @@ pub enum ReceiveRequest {
 impl ReceiveRequest {
     /// Accept this receive request
     pub async fn accept<F, G>(
-        self,
-        transit_handler: G,
-        progress_handler: F,
-        mut answer: offer::OfferAccept,
+        self, transit_handler: G, progress_handler: F, mut answer: offer::OfferAccept,
         cancel: impl Future<Output = ()>,
     ) -> Result<(), TransferError>
     where
@@ -625,7 +595,7 @@ impl ReceiveRequest {
                 let mut acceptor = match entry {
                     offer::OfferEntry::RegularFile { content, .. } => {
                         (content.content)(true).await?
-                    },
+                    }
                     _ => panic!(
                         "when using transfer v1 you must call accept(..) with file offers only",
                     ),
@@ -634,12 +604,12 @@ impl ReceiveRequest {
                 request
                     .accept(transit_handler, progress_handler, &mut acceptor, cancel)
                     .await
-            },
+            }
             ReceiveRequest::V2(request) => {
                 request
                     .accept(transit_handler, answer, progress_handler, cancel)
                     .await
-            },
+            }
         }
     }
 

@@ -111,7 +111,7 @@ pub(super) async fn tcp_get_external_ip() -> Result<(SocketAddr, TcpStream), Stu
             .map(|addr| match addr {
                 SocketAddr::V4(v4) => {
                     SocketAddr::new(IpAddr::V6(v4.ip().to_ipv6_mapped()), v4.port())
-                },
+                }
                 SocketAddr::V6(_) => unreachable!(),
             })
             .ok_or(StunError::ServerIsV6Only)?
@@ -192,8 +192,7 @@ pub(super) async fn tcp_get_external_ip() -> Result<(SocketAddr, TcpStream), Stu
  */
 #[cfg(not(target_family = "wasm"))]
 async fn tcp_connect_custom(
-    local_addr: &socket2::SockAddr,
-    dest_addr: &socket2::SockAddr,
+    local_addr: &socket2::SockAddr, dest_addr: &socket2::SockAddr,
 ) -> std::io::Result<async_net::TcpStream> {
     tracing::debug!("Binding to {}", local_addr.as_socket().unwrap());
     let socket = socket2::Socket::new(socket2::Domain::IPV6, socket2::Type::STREAM, None)?;
@@ -204,10 +203,10 @@ async fn tcp_connect_custom(
 
     /* Initiate connect */
     match socket.connect(dest_addr) {
-        Ok(_) => {},
+        Ok(_) => {}
         #[cfg(unix)]
-        Err(err) if err.raw_os_error() == Some(libc::EINPROGRESS) => {},
-        Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {},
+        Err(err) if err.raw_os_error() == Some(libc::EINPROGRESS) => {}
+        Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {}
         Err(err) => return Err(err),
     }
 
@@ -226,8 +225,7 @@ async fn tcp_connect_custom(
 
 #[cfg(not(target_family = "wasm"))]
 pub(super) async fn connect_tcp_direct(
-    local_addr: Option<Arc<socket2::SockAddr>>,
-    hint: DirectHint,
+    local_addr: Option<Arc<socket2::SockAddr>>, hint: DirectHint,
 ) -> Result<TransitConnection, TransitHandshakeError> {
     let dest_addr = SocketAddr::try_from(&hint)?;
     tracing::debug!("Connecting directly to {}", dest_addr);
@@ -247,8 +245,7 @@ pub(super) async fn connect_tcp_direct(
 /* Take a relay hint and try to connect to it */
 #[cfg(not(target_family = "wasm"))]
 pub(super) async fn connect_tcp_relay(
-    host: DirectHint,
-    name: Option<String>,
+    host: DirectHint, name: Option<String>,
 ) -> Result<TransitConnection, TransitHandshakeError> {
     tracing::debug!("Connecting to relay {}", host);
     let socket = TcpStream::connect((host.hostname.as_str(), host.port))
@@ -261,8 +258,7 @@ pub(super) async fn connect_tcp_relay(
 
 #[cfg(target_family = "wasm")]
 pub(super) async fn connect_ws_relay(
-    url: url::Url,
-    name: Option<String>,
+    url: url::Url, name: Option<String>,
 ) -> Result<TransitConnection, TransitHandshakeError> {
     tracing::debug!("Connecting to relay {}", url);
     let (_meta, transit) = ws_stream_wasm::WsMeta::connect(&url, None)
@@ -283,8 +279,7 @@ pub(super) async fn connect_ws_relay(
 /* Take a tcp connection and transform it into a `TransitConnection` (mainly set timeouts) */
 #[cfg(not(target_family = "wasm"))]
 pub(super) fn wrap_tcp_connection(
-    socket: TcpStream,
-    conn_type: ConnectionType,
+    socket: TcpStream, conn_type: ConnectionType,
 ) -> Result<TransitConnection, TransitHandshakeError> {
     /* Set proper read and write timeouts. This will temporarily set the socket into blocking mode :/ */
     // https://github.com/async-rs/async-std/issues/499

@@ -127,8 +127,7 @@ impl ForwardingError {
     }
 
     pub(self) fn unexpected_message(
-        expected: impl Into<Box<str>>,
-        got: impl std::fmt::Debug + Send + Sync + 'static,
+        expected: impl Into<Box<str>>, got: impl std::fmt::Debug + Send + Sync + 'static,
     ) -> Self {
         Self::ProtocolUnexpectedMessage(expected.into(), Box::new(got))
     }
@@ -145,10 +144,8 @@ impl ForwardingError {
 /// handling. If you want the forward to never (successfully) stop, pass [`futures::future::pending()`]
 /// as the value.
 pub async fn serve(
-    mut wormhole: Wormhole,
-    transit_handler: impl FnOnce(transit::TransitInfo),
-    relay_hints: Vec<transit::RelayHint>,
-    targets: Vec<(Option<url::Host>, u16)>,
+    mut wormhole: Wormhole, transit_handler: impl FnOnce(transit::TransitInfo),
+    relay_hints: Vec<transit::RelayHint>, targets: Vec<(Option<url::Host>, u16)>,
     cancel: impl Future<Output = ()>,
 ) -> Result<(), ForwardingError> {
     assert!(
@@ -193,17 +190,17 @@ pub async fn serve(
         PeerMessage::Transit { hints } => {
             tracing::debug!("Received transit message: {:?}", hints);
             hints
-        },
+        }
         PeerMessage::Error(err) => {
             bail!(ForwardingError::PeerError(err));
-        },
+        }
         other => {
             let error = ForwardingError::unexpected_message("transit", other);
             let _ = wormhole
                 .send_json(&PeerMessage::Error(format!("{error}")))
                 .await;
             bail!(error)
-        },
+        }
     };
 
     let (mut transit, info) = match connector
@@ -222,7 +219,7 @@ pub async fn serve(
                 .send_json(&PeerMessage::Error(format!("{error}")))
                 .await;
             return Err(error);
-        },
+        }
     };
     transit_handler(info);
 
@@ -272,7 +269,7 @@ pub async fn serve(
                 )
                 .await;
             Err(error)
-        },
+        }
     }
 }
 
@@ -301,8 +298,7 @@ impl ForwardingServe {
     async fn forward(
         &mut self,
         transit_tx: &mut (impl futures::sink::Sink<Box<[u8]>, Error = TransitError> + Unpin),
-        connection_id: u64,
-        payload: &[u8],
+        connection_id: u64, payload: &[u8],
     ) -> Result<(), ForwardingError> {
         tracing::debug!("Forwarding {} bytes from #{}", payload.len(), connection_id);
         match self.connections.get_mut(&connection_id) {
@@ -313,13 +309,13 @@ impl ForwardingServe {
                     self.remove_connection(transit_tx, connection_id, true)
                         .await?;
                 }
-            },
+            }
             None if !self.historic_connections.contains(&connection_id) => {
                 bail!(ForwardingError::protocol(format!(
                     "Connection '{connection_id}' not found"
                 )));
-            },
-            None => { /* Race hazard. Do nothing. */ },
+            }
+            None => { /* Race hazard. Do nothing. */ }
         }
         Ok(())
     }
@@ -327,8 +323,7 @@ impl ForwardingServe {
     async fn remove_connection(
         &mut self,
         transit_tx: &mut (impl futures::sink::Sink<Box<[u8]>, Error = TransitError> + Unpin),
-        connection_id: u64,
-        tell_peer: bool,
+        connection_id: u64, tell_peer: bool,
     ) -> Result<(), ForwardingError> {
         tracing::debug!("Removing connection: #{}", connection_id);
         if tell_peer {
@@ -343,13 +338,13 @@ impl ForwardingServe {
         match self.connections.remove(&connection_id) {
             Some((worker, _connection)) => {
                 worker.cancel().await;
-            },
+            }
             None if !self.historic_connections.contains(&connection_id) => {
                 bail!(ForwardingError::protocol(format!(
                     "Connection '{connection_id}' not found"
                 )));
-            },
-            None => { /* Race hazard. Do nothing. */ },
+            }
+            None => { /* Race hazard. Do nothing. */ }
         }
         Ok(())
     }
@@ -357,8 +352,7 @@ impl ForwardingServe {
     async fn spawn_connection(
         &mut self,
         transit_tx: &mut (impl futures::sink::Sink<Box<[u8]>, Error = TransitError> + Unpin),
-        mut target: String,
-        connection_id: u64,
+        mut target: String, connection_id: u64,
     ) -> Result<(), ForwardingError> {
         tracing::debug!("Creating new connection: #{} -> {}", connection_id, target);
 
@@ -369,7 +363,7 @@ impl ForwardingServe {
                 bail!(ForwardingError::protocol(format!(
                     "Connection '{connection_id}' already exists"
                 )));
-            },
+            }
         };
 
         let (host, port) = self.targets.get(&target).unwrap();
@@ -392,7 +386,7 @@ impl ForwardingServe {
                     )
                     .await?;
                 return Ok(());
-            },
+            }
         };
         let (mut connection_rd, connection_wr) = futures_lite::io::split(stream);
         let mut backchannel_tx = self.backchannel_tx.clone();
@@ -532,10 +526,8 @@ impl ForwardingServe {
 /// This method already binds to all the necessary ports up-front. To limit abuse potential
 /// no more than 1024 ports may be forwarded at once.
 pub async fn connect(
-    mut wormhole: Wormhole,
-    transit_handler: impl FnOnce(transit::TransitInfo),
-    relay_hints: Vec<transit::RelayHint>,
-    bind_address: Option<std::net::IpAddr>,
+    mut wormhole: Wormhole, transit_handler: impl FnOnce(transit::TransitInfo),
+    relay_hints: Vec<transit::RelayHint>, bind_address: Option<std::net::IpAddr>,
     custom_ports: &[u16],
 ) -> Result<ConnectOffer, ForwardingError> {
     let our_version: &AppVersion = wormhole
@@ -563,17 +555,17 @@ pub async fn connect(
         PeerMessage::Transit { hints } => {
             tracing::debug!("Received transit message: {:?}", hints);
             hints
-        },
+        }
         PeerMessage::Error(err) => {
             bail!(ForwardingError::PeerError(err));
-        },
+        }
         other => {
             let error = ForwardingError::unexpected_message("transit", other);
             let _ = wormhole
                 .send_json(&PeerMessage::Error(format!("{error}")))
                 .await;
             bail!(error)
-        },
+        }
     };
 
     let (mut transit, info) = match connector
@@ -592,7 +584,7 @@ pub async fn connect(
                 .send_json(&PeerMessage::Error(format!("{error}")))
                 .await;
             return Err(error);
-        },
+        }
     };
     transit_handler(info);
 
@@ -606,10 +598,10 @@ pub async fn connect(
             PeerMessage::Offer { addresses } => addresses,
             PeerMessage::Error(err) => {
                 bail!(ForwardingError::PeerError(err));
-            },
+            }
             other => {
                 bail!(ForwardingError::unexpected_message("offer", other))
-            },
+            }
         };
 
         /* Sanity check on untrusted input */
@@ -653,7 +645,7 @@ pub async fn connect(
                 .send_record(&PeerMessage::Error(format!("{error}")).ser_msgpack())
                 .await;
             Err(error)
-        },
+        }
     }
 }
 
@@ -726,7 +718,7 @@ impl ConnectOffer {
                     )
                     .await;
                 Err(error)
-            },
+            }
         }
     }
 
@@ -770,8 +762,7 @@ where
     async fn forward(
         &mut self,
         transit_tx: &mut (impl futures::sink::Sink<Box<[u8]>, Error = TransitError> + Unpin),
-        connection_id: u64,
-        payload: &[u8],
+        connection_id: u64, payload: &[u8],
     ) -> Result<(), ForwardingError> {
         tracing::debug!("Forwarding {} bytes from #{}", payload.len(), connection_id);
         match self.connections.get_mut(&connection_id) {
@@ -782,13 +773,13 @@ where
                     self.remove_connection(transit_tx, connection_id, true)
                         .await?;
                 }
-            },
+            }
             None if self.connection_counter <= connection_id => {
                 bail!(ForwardingError::protocol(format!(
                     "Connection '{connection_id}' not found"
                 )));
-            },
-            None => { /* Race hazard. Do nothing. */ },
+            }
+            None => { /* Race hazard. Do nothing. */ }
         }
         Ok(())
     }
@@ -796,8 +787,7 @@ where
     async fn remove_connection(
         &mut self,
         transit_tx: &mut (impl futures::sink::Sink<Box<[u8]>, Error = TransitError> + Unpin),
-        connection_id: u64,
-        tell_peer: bool,
+        connection_id: u64, tell_peer: bool,
     ) -> Result<(), ForwardingError> {
         tracing::debug!("Removing connection: #{}", connection_id);
         if tell_peer {
@@ -812,13 +802,13 @@ where
         match self.connections.remove(&connection_id) {
             Some((worker, _connection)) => {
                 worker.cancel().await;
-            },
+            }
             None if connection_id >= self.connection_counter => {
                 bail!(ForwardingError::protocol(format!(
                     "Connection '{connection_id}' not found"
                 )));
-            },
-            None => { /* Race hazard. Do nothing. */ },
+            }
+            None => { /* Race hazard. Do nothing. */ }
         }
         Ok(())
     }
@@ -826,8 +816,7 @@ where
     async fn spawn_connection(
         &mut self,
         transit_tx: &mut (impl futures::sink::Sink<Box<[u8]>, Error = TransitError> + Unpin),
-        target: Rc<String>,
-        connection: async_net::TcpStream,
+        target: Rc<String>, connection: async_net::TcpStream,
     ) -> Result<(), ForwardingError> {
         let connection_id = self.connection_counter;
         self.connection_counter += 1;

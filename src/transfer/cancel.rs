@@ -6,8 +6,7 @@ use super::*;
 /// At it's core, it is an `Abortable` but instead of having an `AbortHandle`, we use a future that resolves as trigger.
 /// Under the hood, it is implementing the same functionality as a `select`, but mapping one of the outcomes to an error type.
 pub async fn cancellable<T>(
-    future: impl Future<Output = T> + Unpin,
-    cancel: impl Future<Output = ()>,
+    future: impl Future<Output = T> + Unpin, cancel: impl Future<Output = ()>,
 ) -> Result<T, Cancelled> {
     use futures::future::Either;
     futures::pin_mut!(cancel);
@@ -19,8 +18,7 @@ pub async fn cancellable<T>(
 
 /** Like `cancellable`, but you'll get back the cancellation future in case the code terminates for future use */
 pub async fn cancellable_2<T, C: Future<Output = ()> + Unpin>(
-    future: impl Future<Output = T> + Unpin,
-    cancel: C,
+    future: impl Future<Output = T> + Unpin, cancel: C,
 ) -> Result<(T, C), Cancelled> {
     use futures::future::Either;
     match futures::future::select(cancel, future).await {
@@ -85,7 +83,7 @@ async fn wrap_timeout(run: impl Future<Output = ()>, cancel: impl Future<Output 
     let run = timeout(SHUTDOWN_TIME, run);
     futures::pin_mut!(run);
     match cancellable(run, cancel).await {
-        Ok(Ok(())) => {},
+        Ok(Ok(())) => {}
         Ok(Err(_timeout)) => tracing::debug!("Post-transfer timed out"),
         Err(_cancelled) => tracing::debug!("Post-transfer got cancelled by user"),
     };
@@ -115,7 +113,7 @@ pub async fn handle_run_result(
             )
             .await;
             Ok(())
-        },
+        }
         Ok(None) => Ok(()),
         Err(e) => Err(e),
     }
@@ -123,8 +121,7 @@ pub async fn handle_run_result(
 
 /** Handle the post-{transfer, failure, cancellation} logic */
 pub async fn handle_run_result_noclose<T, C: Future<Output = ()>>(
-    mut wormhole: Wormhole,
-    result: Result<(Result<T, TransferError>, C), Cancelled>,
+    mut wormhole: Wormhole, result: Result<(Result<T, TransferError>, C), Cancelled>,
 ) -> Result<Option<(T, Wormhole, C)>, TransferError> {
     match result {
         /* Happy case: everything went okay */
@@ -143,7 +140,7 @@ pub async fn handle_run_result_noclose<T, C: Future<Output = ()>>(
             )
             .await;
             Err(error)
-        },
+        }
         /* Got transit error: try to receive peer error for better error message */
         Ok((Err(mut error @ TransferError::Transit(_)), cancel)) => {
             tracing::debug!(
@@ -164,7 +161,7 @@ pub async fn handle_run_result_noclose<T, C: Future<Output = ()>>(
                 debug_err(wormhole.close().await, "close Wormhole");
             }, cancel).await;
             Err(error)
-        },
+        }
         /* Other error: try to notify peer */
         Ok((Err(error), cancel)) => {
             tracing::debug!(
@@ -185,7 +182,7 @@ pub async fn handle_run_result_noclose<T, C: Future<Output = ()>>(
             )
             .await;
             Err(error)
-        },
+        }
         /* Cancelled: try to notify peer */
         Err(cancelled) => {
             tracing::debug!("Transfer got cancelled, doing cleanup logic");
@@ -204,7 +201,7 @@ pub async fn handle_run_result_noclose<T, C: Future<Output = ()>>(
             )
             .await;
             Ok(None)
-        },
+        }
     }
 }
 
@@ -228,7 +225,7 @@ pub async fn handle_run_result_transit<T>(
                 error
             );
             Err(error)
-        },
+        }
         /* Got transit error: try to receive peer error for better error message */
         Ok((Err(mut error @ TransferError::Transit(_)), cancel)) => {
             tracing::debug!(
@@ -250,7 +247,7 @@ pub async fn handle_run_result_transit<T>(
                             Ok(Some(err)) => {
                                 error = TransferError::PeerError(err);
                                 break;
-                            },
+                            }
                             Err(_) => break,
                         }
                     }
@@ -259,7 +256,7 @@ pub async fn handle_run_result_transit<T>(
             )
             .await;
             Err(error)
-        },
+        }
         /* Other error: try to notify peer */
         Ok((Err(error), cancel)) => {
             tracing::debug!(
@@ -277,7 +274,7 @@ pub async fn handle_run_result_transit<T>(
             )
             .await;
             Err(error)
-        },
+        }
         /* Cancelled: try to notify peer */
         Err(cancelled) => {
             tracing::debug!("Transfer got cancelled, doing cleanup logic");
@@ -293,6 +290,6 @@ pub async fn handle_run_result_transit<T>(
             )
             .await;
             Ok(None)
-        },
+        }
     }
 }

@@ -105,7 +105,7 @@ async fn test_connect_with_unknown_code_and_no_allocate_fails() {
     match error {
         WormholeError::UnclaimedNameplate(nameplate) => {
             assert_eq!(nameplate, code.nameplate());
-        },
+        }
         _ => panic!("Wrong error type: {error}"),
     }
 }
@@ -121,7 +121,7 @@ async fn file_offers()
             let data = match name {
                 "example-file-4096.bin" => {
                     include_bytes!("../../tests/example-file-4096.bin").to_vec()
-                },
+                }
                 "example-file-empty" => include_bytes!("../../tests/example-file-empty").to_vec(),
                 "example-file.bin" => include_bytes!("../../tests/example-file.bin").to_vec(),
                 _ => panic!("file {name} not included in test binary"),
@@ -177,17 +177,14 @@ async fn file_offers()
 
                     impl futures::io::AsyncWrite for Writer {
                         fn poll_write(
-                            mut self: Pin<&mut Self>,
-                            _: &mut Context<'_>,
-                            buf: &[u8],
+                            mut self: Pin<&mut Self>, _: &mut Context<'_>, buf: &[u8],
                         ) -> Poll<io::Result<usize>> {
                             self.receive_bytes.extend_from_slice(buf);
                             Poll::Ready(Ok(buf.len()))
                         }
 
                         fn poll_close(
-                            mut self: Pin<&mut Self>,
-                            _: &mut Context<'_>,
+                            mut self: Pin<&mut Self>, _: &mut Context<'_>,
                         ) -> Poll<io::Result<()>> {
                             self.closed = true;
                             if self.send_bytes == self.receive_bytes {
@@ -200,8 +197,7 @@ async fn file_offers()
                         }
 
                         fn poll_flush(
-                            self: Pin<&mut Self>,
-                            _: &mut Context<'_>,
+                            self: Pin<&mut Self>, _: &mut Context<'_>,
                         ) -> Poll<io::Result<()>> {
                             Poll::Ready(Ok(()))
                         }
@@ -488,7 +484,7 @@ async fn test_crowded() {
             magic_wormhole::rendezvous::RendezvousError::Server(error),
         ) => {
             assert_eq!(&*error, "crowded")
-        },
+        }
         other => panic!("Got wrong error message: {other}, wanted 'crowded'"),
     }
 }
@@ -502,7 +498,7 @@ async fn test_connect_with_code_expecting_nameplate() {
     match error {
         magic_wormhole::WormholeError::UnclaimedNameplate(x) => {
             assert_eq!(x, code.nameplate());
-        },
+        }
         other => panic!("Got wrong error type {other:?}. Expected `NameplateNotFound`"),
     }
 }

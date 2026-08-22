@@ -40,7 +40,7 @@ pub fn sodium_increment_be(n: &mut [u8]) {
 
 /** Mint a new hashcash token with a given difficulty and resource string. */
 pub fn hashcash(resource: String, bits: u32) -> String {
-    use rand::{distr::StandardUniform, RngExt};
+    use rand::{RngExt, distr::StandardUniform};
     use sha1::{Digest, Sha1};
 
     if bits > 32 {
@@ -133,8 +133,7 @@ pub(crate) async fn sleep(timeout: std::time::Duration) {
 ///
 /// This behaves the same as async std timeout, but with async-io
 pub(crate) fn timeout<'a, R, F: std::future::Future<Output = R> + 'a>(
-    timeout: std::time::Duration,
-    future: F,
+    timeout: std::time::Duration, future: F,
 ) -> impl Future<Output = Result<R, TimeoutError>> + 'a {
     let timeout_future = async move {
         sleep(timeout).await;

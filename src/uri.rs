@@ -80,7 +80,7 @@ impl TryFrom<&url::Url> for WormholeTransferUri {
         use std::ops::Deref;
 
         match url.scheme() {
-            "wormhole-transfer" => {},
+            "wormhole-transfer" => {}
             other => return Err(ParseError::SchemeError(other.into())),
         }
         if url.has_host() {
@@ -90,7 +90,7 @@ impl TryFrom<&url::Url> for WormholeTransferUri {
             .query_pairs()
             .collect::<std::collections::HashMap<_, _>>();
         match queries.get("version").map(Deref::deref).unwrap_or("0") {
-            "0" => {},
+            "0" => {}
             unsupported => return Err(ParseError::UnsupportedVersion(unsupported.into())),
         }
         let rendezvous_server = queries

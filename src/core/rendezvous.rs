@@ -101,9 +101,7 @@ struct WsConnection {
 impl WsConnection {
     #[cfg(not(target_family = "wasm"))]
     async fn send_message(
-        &mut self,
-        message: &OutboundMessage,
-        queue: Option<&mut MessageQueue>,
+        &mut self, message: &OutboundMessage, queue: Option<&mut MessageQueue>,
     ) -> Result<(), RendezvousError> {
         tracing::debug!("Sending {}", message);
         self.connection
@@ -115,9 +113,7 @@ impl WsConnection {
 
     #[cfg(target_family = "wasm")]
     async fn send_message(
-        &mut self,
-        message: &OutboundMessage,
-        queue: Option<&mut MessageQueue>,
+        &mut self, message: &OutboundMessage, queue: Option<&mut MessageQueue>,
     ) -> Result<(), RendezvousError> {
         tracing::debug!("Sending {:?}", message);
         self.connection
@@ -130,8 +126,7 @@ impl WsConnection {
     }
 
     async fn receive_ack(
-        &mut self,
-        mut queue: Option<&mut MessageQueue>,
+        &mut self, mut queue: Option<&mut MessageQueue>,
     ) -> Result<(), RendezvousError> {
         loop {
             let message = self.receive_message().await?;
@@ -140,18 +135,18 @@ impl WsConnection {
                 Some(InboundMessage::Message(message)) => match &mut queue {
                     Some(queue) => {
                         queue.push_back(message);
-                    },
+                    }
                     None => {
                         return Err(RendezvousError::protocol(
                             "Received peer message, but haven't opened the mailbox yet",
                         ));
-                    },
+                    }
                 },
                 Some(other) => {
                     return Err(RendezvousError::protocol(format!(
                         "Got unexpected message type from server '{other}'"
                     )));
-                },
+                }
                 None => continue,
             }
         }
@@ -159,41 +154,40 @@ impl WsConnection {
     }
 
     async fn receive_reply(
-        &mut self,
-        mut queue: Option<&mut MessageQueue>,
+        &mut self, mut queue: Option<&mut MessageQueue>,
     ) -> Result<RendezvousReply, RendezvousError> {
         loop {
             let message = self.receive_message().await?;
             match message {
                 Some(InboundMessage::Allocated { nameplate }) => {
                     break Ok(RendezvousReply::Allocated(nameplate));
-                },
+                }
                 Some(InboundMessage::Released) => break Ok(RendezvousReply::Released),
                 Some(InboundMessage::Claimed { mailbox }) => {
                     break Ok(RendezvousReply::Claimed(mailbox));
-                },
+                }
                 Some(InboundMessage::Closed) => break Ok(RendezvousReply::Closed),
                 Some(InboundMessage::Message(message)) => match &mut queue {
                     Some(queue) => {
                         queue.push_back(message);
-                    },
+                    }
                     None => {
                         break Err(RendezvousError::protocol(
                             "Received peer message, but haven't opened the mailbox yet",
                         ));
-                    },
+                    }
                 },
                 Some(InboundMessage::Error { error, orig: _ }) => {
                     break Err(RendezvousError::Server(error.into()));
-                },
+                }
                 Some(InboundMessage::Nameplates { nameplates }) => {
                     break Ok(RendezvousReply::Nameplates(NameplateList(nameplates)));
-                },
+                }
                 Some(other) => {
                     break Err(RendezvousError::protocol(format!(
                         "Got unexpected message type from server '{other}'"
                     )));
-                },
+                }
                 None => (/*continue*/),
             }
         }
@@ -222,11 +216,11 @@ impl WsConnection {
                     InboundMessage::Unknown => {
                         tracing::warn!("Got unknown message, ignoring: '{}'", message_plain);
                         Ok(None)
-                    },
+                    }
                     InboundMessage::Error { error, orig: _ } => Err(RendezvousError::server(error)),
                     message => Ok(Some(message)),
                 }
-            },
+            }
             ws2::Message::Binary(_) => Err(RendezvousError::protocol(
                 "WebSocket messages must be UTF-8 encoded text",
             )),
@@ -236,13 +230,13 @@ impl WsConnection {
             ws2::Message::Close(_) => {
                 tracing::debug!("Received connection close");
                 Err(ws2::Error::ConnectionClosed.into())
-            },
+            }
             ws2::Message::Frame(_) => {
                 tracing::warn!(
                     "Received a WebSocket 'Frame' message and don't know what to do with it, please open a bug report"
                 );
                 Ok(None)
-            },
+            }
         }
     }
 
@@ -261,11 +255,11 @@ impl WsConnection {
                     InboundMessage::Unknown => {
                         tracing::warn!("Got unknown message, ignoring: '{}'", message_plain);
                         Ok(None)
-                    },
+                    }
                     InboundMessage::Error { error, orig: _ } => Err(RendezvousError::server(error)),
                     message => Ok(Some(message)),
                 }
-            },
+            }
             ws_stream_wasm::WsMessage::Binary(_) => Err(RendezvousError::protocol(
                 "WebSocket messages must be UTF-8 encoded text",
             )),
@@ -346,8 +340,7 @@ impl RendezvousServer {
      * connection to the given `appid`.
      */
     pub async fn connect(
-        appid: &AppID,
-        relay_url: &str,
+        appid: &AppID, relay_url: &str,
     ) -> Result<(Self, Option<String>), RendezvousError> {
         let side = MySide::generate();
         let mut connection;
@@ -373,7 +366,7 @@ impl RendezvousServer {
                 return Err(RendezvousError::protocol(format!(
                     "First message server sends must be 'welcome', but was '{other}'"
                 )));
-            },
+            }
         };
 
         match welcome.permission_required {
@@ -390,7 +383,7 @@ impl RendezvousServer {
                         None,
                     )
                     .await?;
-            },
+            }
             Some(PermissionRequired { none: true, .. }) => (),
             Some(PermissionRequired { other, .. }) => {
                 /* We can't actually log in :/ */
@@ -398,7 +391,7 @@ impl RendezvousServer {
                     // TODO use `into_keys` once stable and remove the `cloned`
                     other.keys().cloned().collect(),
                 ));
-            },
+            }
             None => (),
         }
 
@@ -436,9 +429,7 @@ impl RendezvousServer {
     }
 
     pub(crate) async fn send_peer_message(
-        &mut self,
-        phase: Phase,
-        body: Vec<u8>,
+        &mut self, phase: Phase, body: Vec<u8>,
     ) -> Result<(), RendezvousError> {
         self.send_message(&OutboundMessage::Add { body, phase })
             .await
@@ -475,7 +466,7 @@ impl RendezvousServer {
                 } else {
                     Ok(None)
                 }
-            },
+            }
             Some(other) => Err(RendezvousError::protocol(format!(
                 "Expected message from peer, got '{other}' instead"
             ))),

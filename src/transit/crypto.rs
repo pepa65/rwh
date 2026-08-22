@@ -62,8 +62,7 @@ impl From<()> for TransitHandshakeError {
 /// and confirms the usage of that specific connection. This trait represents that specific type state.
 pub(super) trait TransitCryptoInitFinalizer: Send {
     fn handshake_finalize(
-        self: Box<Self>,
-        socket: &mut dyn TransitTransport,
+        self: Box<Self>, socket: &mut dyn TransitTransport,
     ) -> BoxFuture<'_, Result<DynTransitCrypto, TransitHandshakeError>>;
 }
 
@@ -71,8 +70,7 @@ pub(super) trait TransitCryptoInitFinalizer: Send {
 /// used by the follower side. Since it is a no-op there, simply implement the trait for the result.
 impl TransitCryptoInitFinalizer for DynTransitCrypto {
     fn handshake_finalize(
-        self: Box<Self>,
-        _socket: &mut dyn TransitTransport,
+        self: Box<Self>, _socket: &mut dyn TransitTransport,
     ) -> BoxFuture<'_, Result<DynTransitCrypto, TransitHandshakeError>> {
         Box::pin(futures::future::ready(Ok(*self)))
     }
@@ -83,12 +81,10 @@ impl TransitCryptoInitFinalizer for DynTransitCrypto {
 pub(super) trait TransitCryptoInit: Send + Sync {
     // Yes, this method returns a nested future. TODO explain
     async fn handshake_leader(
-        &self,
-        socket: &mut dyn TransitTransport,
+        &self, socket: &mut dyn TransitTransport,
     ) -> Result<Box<dyn TransitCryptoInitFinalizer>, TransitHandshakeError>;
     async fn handshake_follower(
-        &self,
-        socket: &mut dyn TransitTransport,
+        &self, socket: &mut dyn TransitTransport,
     ) -> Result<Box<dyn TransitCryptoInitFinalizer>, TransitHandshakeError>;
 }
 
@@ -107,8 +103,7 @@ pub struct SecretboxInit {
 #[async_trait]
 impl TransitCryptoInit for SecretboxInit {
     async fn handshake_leader(
-        &self,
-        socket: &mut dyn TransitTransport,
+        &self, socket: &mut dyn TransitTransport,
     ) -> Result<Box<dyn TransitCryptoInitFinalizer>, TransitHandshakeError> {
         // 9. create record keys
         let rkey = self
@@ -148,8 +143,7 @@ impl TransitCryptoInit for SecretboxInit {
 
         impl TransitCryptoInitFinalizer for Finalizer {
             fn handshake_finalize(
-                self: Box<Self>,
-                socket: &mut dyn TransitTransport,
+                self: Box<Self>, socket: &mut dyn TransitTransport,
             ) -> BoxFuture<Result<DynTransitCrypto, TransitHandshakeError>> {
                 Box::pin(async move {
                     socket.write_all(b"go\n").await?;
@@ -172,8 +166,7 @@ impl TransitCryptoInit for SecretboxInit {
     }
 
     async fn handshake_follower(
-        &self,
-        socket: &mut dyn TransitTransport,
+        &self, socket: &mut dyn TransitTransport,
     ) -> Result<Box<dyn TransitCryptoInitFinalizer>, TransitHandshakeError> {
         // 9. create record keys
         /* The order here is correct. The "sender" and "receiver" side are a misnomer and should be called
@@ -246,8 +239,7 @@ pub struct NoiseInit {
 #[async_trait]
 impl TransitCryptoInit for NoiseInit {
     async fn handshake_leader(
-        &self,
-        socket: &mut dyn TransitTransport,
+        &self, socket: &mut dyn TransitTransport,
     ) -> Result<Box<dyn TransitCryptoInitFinalizer>, TransitHandshakeError> {
         socket
             .write_all(b"Magic-Wormhole Dilation Handshake v1 Leader\n\n")
@@ -290,8 +282,7 @@ impl TransitCryptoInit for NoiseInit {
 
         impl TransitCryptoInitFinalizer for Finalizer {
             fn handshake_finalize(
-                mut self: Box<Self>,
-                socket: &mut dyn TransitTransport,
+                mut self: Box<Self>, socket: &mut dyn TransitTransport,
             ) -> BoxFuture<Result<DynTransitCrypto, TransitHandshakeError>> {
                 Box::pin(async move {
                     // → ""
@@ -313,8 +304,7 @@ impl TransitCryptoInit for NoiseInit {
     }
 
     async fn handshake_follower(
-        &self,
-        socket: &mut dyn TransitTransport,
+        &self, socket: &mut dyn TransitTransport,
     ) -> Result<Box<dyn TransitCryptoInitFinalizer>, TransitHandshakeError> {
         socket
             .write_all(b"Magic-Wormhole Dilation Handshake v1 Follower\n\n")
@@ -366,17 +356,14 @@ type DynTransitCrypto = (Box<dyn TransitCryptoEncrypt>, Box<dyn TransitCryptoDec
 #[async_trait]
 pub(super) trait TransitCryptoEncrypt: Send {
     async fn encrypt(
-        &mut self,
-        socket: &mut dyn TransitTransportTx,
-        plaintext: &[u8],
+        &mut self, socket: &mut dyn TransitTransportTx, plaintext: &[u8],
     ) -> Result<(), TransitError>;
 }
 
 #[async_trait]
 pub(super) trait TransitCryptoDecrypt: Send {
     async fn decrypt(
-        &mut self,
-        socket: &mut dyn TransitTransportRx,
+        &mut self, socket: &mut dyn TransitTransportRx,
     ) -> Result<Box<[u8]>, TransitError>;
 }
 
@@ -401,9 +388,7 @@ struct SecretboxCryptoDecrypt {
 #[async_trait]
 impl TransitCryptoEncrypt for SecretboxCryptoEncrypt {
     async fn encrypt(
-        &mut self,
-        socket: &mut dyn TransitTransportTx,
-        plaintext: &[u8],
+        &mut self, socket: &mut dyn TransitTransportTx, plaintext: &[u8],
     ) -> Result<(), TransitError> {
         let nonce = &mut self.snonce;
         let sodium_key = secretbox::Key::from_slice(self.skey.as_ref());
@@ -434,8 +419,7 @@ impl TransitCryptoEncrypt for SecretboxCryptoEncrypt {
 #[async_trait]
 impl TransitCryptoDecrypt for SecretboxCryptoDecrypt {
     async fn decrypt(
-        &mut self,
-        socket: &mut dyn TransitTransportRx,
+        &mut self, socket: &mut dyn TransitTransportRx,
     ) -> Result<Box<[u8]>, TransitError> {
         let nonce = &mut self.rnonce;
 
@@ -487,9 +471,7 @@ struct NoiseCryptoDecrypt {
 #[async_trait]
 impl TransitCryptoEncrypt for NoiseCryptoEncrypt {
     async fn encrypt(
-        &mut self,
-        socket: &mut dyn TransitTransportTx,
-        plaintext: &[u8],
+        &mut self, socket: &mut dyn TransitTransportTx, plaintext: &[u8],
     ) -> Result<(), TransitError> {
         socket
             .write_transit_message(&self.tx.encrypt_vec(plaintext))
@@ -501,8 +483,7 @@ impl TransitCryptoEncrypt for NoiseCryptoEncrypt {
 #[async_trait]
 impl TransitCryptoDecrypt for NoiseCryptoDecrypt {
     async fn decrypt(
-        &mut self,
-        socket: &mut dyn TransitTransportRx,
+        &mut self, socket: &mut dyn TransitTransportRx,
     ) -> Result<Box<[u8]>, TransitError> {
         let plaintext = self.rx.decrypt_vec(&socket.read_transit_message().await?)?;
         Ok(plaintext.into_boxed_slice())

@@ -250,7 +250,7 @@ enum WormholeCommand {
     help_template = "\
 {name} {version} - {about}
 {usage-heading} {usage}
-{all-args}{after-help}",
+{all-args}{after-help}"
 )]
 struct WormholeCli {
     /// Enable logging to stdout, for debugging purposes
@@ -288,7 +288,6 @@ async fn async_main() -> eyre::Result<()> {
     NO_COLOR.set(app.no_color).expect("");
 
     let mut term = Term::stdout();
-
 
     if app.log {
         tracing_subscriber::fmt()
@@ -342,7 +341,7 @@ async fn async_main() -> eyre::Result<()> {
             };
 
             Box::pin(send(wormhole, relay_hints, offer, transit_abilities)).await?;
-        },
+        }
         WormholeCommand::SendMany {
             tries,
             timeout,
@@ -387,7 +386,7 @@ async fn async_main() -> eyre::Result<()> {
                 transit_abilities,
             ))
             .await?;
-        },
+        }
         WormholeCommand::Receive {
             noconfirm,
             common,
@@ -421,7 +420,7 @@ async fn async_main() -> eyre::Result<()> {
                 transit_abilities,
             ))
             .await?;
-        },
+        }
         WormholeCommand::Forward(ForwardCommand::Serve {
             targets,
             common,
@@ -451,7 +450,7 @@ async fn async_main() -> eyre::Result<()> {
                                     .context("Invalid host")?;
                                 let port: u16 = port.parse().context("Invalid port")?;
                                 Ok((Some(host), port))
-                            },
+                            }
                             None => {
                                 // Just a port
                                 target
@@ -459,7 +458,7 @@ async fn async_main() -> eyre::Result<()> {
                                     .map(|port| (None, port))
                                     .map_err(eyre::Error::from)
                                     .context("Invalid port")
-                            },
+                            }
                         }
                     })();
                     result.context(format!(
@@ -502,7 +501,7 @@ async fn async_main() -> eyre::Result<()> {
                 ))
                 .detach();
             }
-        },
+        }
         WormholeCommand::Forward(ForwardCommand::Connect {
             ports,
             noconfirm,
@@ -540,7 +539,7 @@ async fn async_main() -> eyre::Result<()> {
             } else {
                 offer.reject().await?;
             }
-        },
+        }
         WormholeCommand::Completion { shell } => {
             let mut cmd = WormholeCli::command();
             let binary_name = env!("CARGO_BIN_NAME");
@@ -560,17 +559,17 @@ async fn async_main() -> eyre::Result<()> {
                     );
 
                     std::io::stdout().write_all(out.as_bytes())?;
-                },
+                }
                 shell => {
                     let mut out = std::io::stdout();
                     clap_complete::generate(shell, &mut cmd, binary_name, &mut out);
-                },
+                }
             }
-        },
+        }
         WormholeCommand::Help => {
             println!("Use --help to get help");
             std::process::exit(2);
-        },
+        }
     }
 
     Ok(())
@@ -585,20 +584,15 @@ fn parse_transit_args(args: &CommonArgs) -> transit::Abilities {
     }
 }
 
-type PrintCodeFn =
-    dyn Fn(&mut Term, &rwhlib::Code, &Option<url::Url>, bool) -> eyre::Result<()>;
+type PrintCodeFn = dyn Fn(&mut Term, &rwhlib::Code, &Option<url::Url>, bool) -> eyre::Result<()>;
 
 // Parse the necessary command line arguments to establish an initial server connection.
 // This is used over and over again by the different subcommands.
 // If this `is_send` and the code is not specified via the CLI, then a code will be allocated.
 // Otherwise, the user will be prompted interactively to enter it.
 async fn parse_and_connect(
-    term: &mut Term,
-    common_args: CommonArgs,
-    mut code: Option<String>,
-    code_length: Option<usize>,
-    qr: bool,
-    is_send: bool,
+    term: &mut Term, common_args: CommonArgs, mut code: Option<String>, code_length: Option<usize>,
+    qr: bool, is_send: bool,
     mut app_config: rwhlib::AppConfig<impl serde::Serialize + Send + Sync + 'static>,
     print_code: Option<&PrintCodeFn>,
 ) -> eyre::Result<(Wormhole, rwhlib::Code, Vec<transit::RelayHint>)> {
@@ -611,9 +605,7 @@ async fn parse_and_connect(
     if relay_hints.is_empty() {
         relay_hints.push(transit::RelayHint::from_urls(
             None,
-            [rwhlib::transit::DEFAULT_RELAY_SERVER
-                .parse()
-                .unwrap()],
+            [rwhlib::transit::DEFAULT_RELAY_SERVER.parse().unwrap()],
         )?)
     }
 
@@ -637,13 +629,13 @@ async fn parse_and_connect(
             // Only fail for the case where the password is < 4 characters.
             // Anything else will just print an error for now.
             return Err(err.into());
-        },
+        }
         // If we have an interactive terminal connected, also fail for low entropy
         Some(Err(err @ ParseCodeError::Password(ParsePasswordError::LittleEntropy { .. })))
             if std::io::stdin().is_terminal() =>
         {
             return Err(err.into());
-        },
+        }
         Some(Err(err)) => {
             tracing::error!("{} This will fail in the next release.", err);
             code.map(|c| {
@@ -655,7 +647,7 @@ async fn parse_and_connect(
                     )
                 }
             })
-        },
+        }
         None => None,
     };
 
@@ -676,7 +668,7 @@ async fn parse_and_connect(
                 )?;
             }
             MailboxConnection::connect(app_config, code, true).await?
-        },
+        }
         None => {
             let mailbox_connection =
                 MailboxConnection::create(app_config, code_length.unwrap()).await?;
@@ -707,7 +699,7 @@ async fn parse_and_connect(
                 )?;
             }
             mailbox_connection
-        },
+        }
     };
     print_welcome(term, mailbox_connection.welcome())?;
     let code = mailbox_connection.code().clone();
@@ -716,8 +708,7 @@ async fn parse_and_connect(
 }
 
 async fn make_send_offer(
-    mut files: Vec<PathBuf>,
-    file_name: Option<String>,
+    mut files: Vec<PathBuf>, file_name: Option<String>,
 ) -> eyre::Result<transfer::offer::OfferSend> {
     for file in &files {
         let path = std::path::PathBuf::from(file);
@@ -734,7 +725,7 @@ async fn make_send_offer(
         (1, Some(file_name)) => {
             let file = files.remove(0);
             Ok(transfer::offer::OfferSend::new_file_or_folder(file_name, file).await?)
-        },
+        }
         (1, None) => {
             let file = files.remove(0);
             let file_name = file
@@ -746,7 +737,7 @@ async fn make_send_offer(
                 .ok_or_else(|| eyre::format_err!("File path must be a valid UTF-8 string"))?
                 .to_owned();
             Ok(transfer::offer::OfferSend::new_file_or_folder(file_name, file).await?)
-        },
+        }
         (_, Some(_)) => Err(eyre::format_err!(
             "Can't customize file name when sending multiple files"
         )),
@@ -767,7 +758,7 @@ async fn make_send_offer(
                 }
             }
             Ok(transfer::offer::OfferSend::new_paths(files).await?)
-        },
+        }
     }
 }
 
@@ -811,10 +802,7 @@ fn print_welcome(term: &mut Term, welcome: Option<&str>) -> eyre::Result<()> {
 
 // For file transfer
 fn sender_print_code(
-    term: &mut Term,
-    code: &rwhlib::Code,
-    rendezvous_server: &Option<url::Url>,
-    qr: bool,
+    term: &mut Term, code: &rwhlib::Code, rendezvous_server: &Option<url::Url>, qr: bool,
 ) -> eyre::Result<()> {
     let uri = rwhlib::uri::WormholeTransferUri {
         code: code.clone(),
@@ -859,10 +847,7 @@ fn sender_print_code(
 
 // For port forwarding
 fn server_print_code(
-    term: &mut Term,
-    code: &rwhlib::Code,
-    _: &Option<url::Url>,
-    _qr: bool,
+    term: &mut Term, code: &rwhlib::Code, _: &Option<url::Url>, _qr: bool,
 ) -> eyre::Result<()> {
     if cfg!(feature = "clipboard") {
         writeln!(
@@ -888,9 +873,7 @@ fn server_print_code(
 }
 
 async fn send(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    offer: transfer::offer::OfferSend,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, offer: transfer::offer::OfferSend,
     transit_abilities: transit::Abilities,
 ) -> eyre::Result<()> {
     let pb = create_progress_bar(0);
@@ -911,15 +894,9 @@ async fn send(
 }
 
 async fn send_many(
-    relay_hints: Vec<transit::RelayHint>,
-    code: &rwhlib::Code,
-    files: Vec<PathBuf>,
-    file_name: Option<String>,
-    max_tries: u64,
-    timeout: Duration,
-    wormhole: Wormhole,
-    term: &mut Term,
-    transit_abilities: transit::Abilities,
+    relay_hints: Vec<transit::RelayHint>, code: &rwhlib::Code, files: Vec<PathBuf>,
+    file_name: Option<String>, max_tries: u64, timeout: Duration, wormhole: Wormhole,
+    term: &mut Term, transit_abilities: transit::Abilities,
 ) -> eyre::Result<()> {
     tracing::warn!(
         "Reminder that you are sending the file to multiple people, and this may reduce the overall security. See the help page for more information."
@@ -974,13 +951,9 @@ async fn send_many(
     }
 
     async fn send_in_background(
-        relay_hints: Vec<transit::RelayHint>,
-        offer: transfer::offer::OfferSend,
-        wormhole: Wormhole,
-        mut term: Term,
-        mp: &MultiProgress,
-        transit_abilities: transit::Abilities,
-        cancel: impl Future<Output = ()> + Send + 'static,
+        relay_hints: Vec<transit::RelayHint>, offer: transfer::offer::OfferSend,
+        wormhole: Wormhole, mut term: Term, mp: &MultiProgress,
+        transit_abilities: transit::Abilities, cancel: impl Future<Output = ()> + Send + 'static,
     ) -> eyre::Result<()> {
         writeln!(&mut term, "Sending file to peer").unwrap();
         let pb = create_progress_bar(0);
@@ -1004,11 +977,11 @@ async fn send_many(
                 Ok(_) => {
                     pb.finish();
                     tracing::info!("Successfully sent file to someone");
-                },
+                }
                 Err(e) => {
                     pb.abandon();
                     tracing::error!("Send failed, {}", e);
-                },
+                }
             };
         })
         .detach();
@@ -1019,11 +992,8 @@ async fn send_many(
 }
 
 async fn receive(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    target_dir: &std::path::Path,
-    noconfirm: bool,
-    transit_abilities: transit::Abilities,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, target_dir: &std::path::Path,
+    noconfirm: bool, transit_abilities: transit::Abilities,
 ) -> eyre::Result<()> {
     #[cfg(not(feature = "experimental-transfer-v2"))]
     {
@@ -1046,20 +1016,18 @@ async fn receive(
         match req {
             Some(transfer::ReceiveRequest::V1(req)) => {
                 receive_inner_v1(req, target_dir, noconfirm).await
-            },
+            }
             #[cfg(feature = "experimental-transfer-v2")]
             Some(transfer::ReceiveRequest::V2(req)) => {
                 receive_inner_v2(req, target_dir, noconfirm).await
-            },
+            }
             None => Ok(()),
         }
     }
 }
 
 async fn receive_inner_v1(
-    req: transfer::ReceiveRequestV1,
-    target_dir: &std::path::Path,
-    noconfirm: bool,
+    req: transfer::ReceiveRequestV1, target_dir: &std::path::Path, noconfirm: bool,
 ) -> eyre::Result<()> {
     use smol::fs::OpenOptions;
 
@@ -1159,9 +1127,7 @@ async fn receive_inner_v1(
 
 #[cfg(feature = "experimental-transfer-v2")]
 async fn receive_inner_v2(
-    req: transfer::ReceiveRequestV2,
-    target_dir: &std::path::Path,
-    noconfirm: bool,
+    req: transfer::ReceiveRequestV2, target_dir: &std::path::Path, noconfirm: bool,
 ) -> eyre::Result<()> {
     let offer = req.offer();
     let file_size = offer.total_size();
@@ -1219,31 +1185,34 @@ async fn receive_inner_v2(
     // Move the received files to their target location
     use futures::TryStreamExt;
     smol::fs::read_dir(&tmp_dir)
-    .await?
-    .map_err(Into::into)
-    .and_then(|file| {
-        let tmp_dir = tmp_dir.clone();
-        async move {
-            let path = file.path();
-            let name = path.file_name().expect("Internal error: this should never happen");
-            let target_path = target_dir.join(name);
+        .await?
+        .map_err(Into::into)
+        .and_then(|file| {
+            let tmp_dir = tmp_dir.clone();
+            async move {
+                let path = file.path();
+                let name = path
+                    .file_name()
+                    .expect("Internal error: this should never happen");
+                let target_path = target_dir.join(name);
 
-            // This suffers some TOCTTOU, sorry about that: https://internals.rust-lang.org/t/rename-file-without-overriding-existing-target/17637
-            let path = std::path::PathBuf::from(&target_path);
-            let dest = path.clone();
-            if smol::unblock(move || dest.exists()).await {
-                eyre::bail!(
-                    "Target destination {} exists, you can manually extract the file from {}",
-                    target_path.display(),
-                    tmp_dir.display(),
-                );
-            } else {
-                smol::fs::rename(&path, &target_path).await?;
+                // This suffers some TOCTTOU, sorry about that: https://internals.rust-lang.org/t/rename-file-without-overriding-existing-target/17637
+                let path = std::path::PathBuf::from(&target_path);
+                let dest = path.clone();
+                if smol::unblock(move || dest.exists()).await {
+                    eyre::bail!(
+                        "Target destination {} exists, you can manually extract the file from {}",
+                        target_path.display(),
+                        tmp_dir.display(),
+                    );
+                } else {
+                    smol::fs::rename(&path, &target_path).await?;
+                }
+                Ok(())
             }
-            Ok(())
-        }})
-    .try_collect::<()>()
-    .await?;
+        })
+        .try_collect::<()>()
+        .await?;
 
     // Delete the temporary directory
     smol::fs::remove_dir_all(&tmp_dir).await.context(format!(

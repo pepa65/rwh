@@ -145,8 +145,7 @@ impl<V: serde::Serialize + Send + Sync + 'static> MailboxConnection<V> {
     ///
     /// TODO: Replace this with create_with_validated_password
     pub async fn create_with_password(
-        config: AppConfig<V>,
-        password: Password,
+        config: AppConfig<V>, password: Password,
     ) -> Result<Self, WormholeError> {
         Self::create_with_validated_password(config, password).await
     }
@@ -158,8 +157,7 @@ impl<V: serde::Serialize + Send + Sync + 'static> MailboxConnection<V> {
     /// * `config`: Application configuration
     /// * `password`: Free text password which will be appended to the nameplate number to form the `Code`
     async fn create_with_validated_password(
-        config: AppConfig<V>,
-        password: Password,
+        config: AppConfig<V>, password: Password,
     ) -> Result<Self, WormholeError> {
         let (mut server, welcome) =
             RendezvousServer::connect(&config.id, &config.rendezvous_url).await?;
@@ -196,9 +194,7 @@ impl<V: serde::Serialize + Send + Sync + 'static> MailboxConnection<V> {
     /// # Ok(()) })}
     /// ```
     pub async fn connect(
-        config: AppConfig<V>,
-        code: Code,
-        allocate: bool,
+        config: AppConfig<V>, code: Code, allocate: bool,
     ) -> Result<Self, WormholeError> {
         let (mut server, welcome) =
             RendezvousServer::connect(&config.id, &config.rendezvous_url).await?;
@@ -365,8 +361,7 @@ impl Wormhole {
      * If the serialization fails
      */
     pub async fn send_json<T: serde::Serialize>(
-        &mut self,
-        message: &T,
+        &mut self, message: &T,
     ) -> Result<(), WormholeError> {
         self.send(serde_json::to_vec(message).unwrap()).await
     }
@@ -883,7 +878,7 @@ impl FromStr for Code {
                 let nameplate: Nameplate = n.parse()?;
 
                 Ok(Self(format!("{nameplate}-{password}")))
-            },
+            }
             None if s.is_empty() => Err(ParseCodeError::Empty),
             None => Err(ParseCodeError::SeparatorMissing),
         }

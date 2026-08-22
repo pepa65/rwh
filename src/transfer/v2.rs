@@ -100,11 +100,8 @@ pub struct TransferAck {}
 
 /** The code to establish a transit connection is essentially the same on both sides. */
 async fn make_transit(
-    wormhole: &mut Wormhole,
-    role: TransitRole,
-    relay_hints: Vec<transit::RelayHint>,
-    transit_abilities: transit::Abilities,
-    peer_abilities: transit::Abilities,
+    wormhole: &mut Wormhole, role: TransitRole, relay_hints: Vec<transit::RelayHint>,
+    transit_abilities: transit::Abilities, peer_abilities: transit::Abilities,
 ) -> Result<(transit::Transit, transit::TransitInfo), TransferError> {
     let connector = transit::init(transit_abilities, Some(peer_abilities), relay_hints).await?;
 
@@ -119,14 +116,14 @@ async fn make_transit(
             PeerMessage::TransitV2(transit) => {
                 tracing::debug!("received transit message: {:?}", transit);
                 transit.hints_v2
-            },
+            }
             other => {
                 let error = TransferError::unexpected_message("transit-v2", other);
                 let _ = wormhole
                     .send_json(&PeerMessage::Error(format!("{error}")))
                     .await;
                 bail!(error)
-            },
+            }
         };
 
     /* Get a transit connection */
@@ -146,19 +143,16 @@ async fn make_transit(
                 .send_json(&PeerMessage::Error(format!("{error}")))
                 .await;
             return Err(error);
-        },
+        }
     };
 
     Ok((transit, info))
 }
 
 pub async fn send(
-    mut wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    transit_abilities: transit::Abilities,
-    offer: OfferSend,
-    progress_handler: impl FnMut(u64, u64) + 'static,
-    peer_version: AppVersion,
+    mut wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>,
+    transit_abilities: transit::Abilities, offer: OfferSend,
+    progress_handler: impl FnMut(u64, u64) + 'static, peer_version: AppVersion,
     cancel: impl Future<Output = ()>,
 ) -> Result<(), TransferError> {
     let peer_abilities = peer_version.transfer_v2.unwrap();
@@ -204,8 +198,7 @@ pub async fn send(
 
 /** We've established the transit connection and closed the Wormhole */
 async fn send_inner(
-    transit: &mut transit::Transit,
-    offer: OfferSend,
+    transit: &mut transit::Transit, offer: OfferSend,
     mut progress_handler: impl FnMut(u64, u64) + 'static,
 ) -> Result<(), TransferError> {
     transit.send_record(&{
@@ -217,7 +210,7 @@ async fn send_inner(
         PeerMessageV2::Answer(answer) => answer.files,
         other => {
             bail!(TransferError::unexpected_message("answer", other))
-        },
+        }
     };
 
     let mut total_size = 0;
@@ -331,11 +324,8 @@ async fn send_inner(
 }
 
 pub async fn request(
-    mut wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    peer_version: AppVersion,
-    transit_abilities: transit::Abilities,
-    cancel: impl Future<Output = ()>,
+    mut wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, peer_version: AppVersion,
+    transit_abilities: transit::Abilities, cancel: impl Future<Output = ()>,
 ) -> Result<Option<ReceiveRequest>, TransferError> {
     let peer_abilities = peer_version.transfer_v2.unwrap();
     futures::pin_mut!(cancel);
@@ -368,7 +358,7 @@ pub async fn request(
                     PeerMessageV2::Offer(offer) => offer,
                     other => {
                         bail!(TransferError::unexpected_message("offer", other))
-                    },
+                    }
                 };
 
             Ok(offer)
@@ -417,11 +407,8 @@ impl ReceiveRequest {
      * This will transfer the file and save it on disk.
      */
     pub async fn accept(
-        self,
-        transit_handler: impl FnOnce(transit::TransitInfo),
-        answer: OfferAccept,
-        progress_handler: impl FnMut(u64, u64) + 'static,
-        cancel: impl Future<Output = ()>,
+        self, transit_handler: impl FnOnce(transit::TransitInfo), answer: OfferAccept,
+        progress_handler: impl FnMut(u64, u64) + 'static, cancel: impl Future<Output = ()>,
     ) -> Result<(), TransferError> {
         transit_handler(self.info);
         futures::pin_mut!(cancel);
@@ -474,9 +461,7 @@ impl ReceiveRequest {
 
 /** We've established the transit connection and closed the Wormhole */
 async fn receive_inner(
-    transit: &mut transit::Transit,
-    offer: &Arc<Offer>,
-    our_answer: OfferAccept,
+    transit: &mut transit::Transit, offer: &Arc<Offer>, our_answer: OfferAccept,
     mut progress_handler: impl FnMut(u64, u64) + 'static,
 ) -> Result<(), TransferError> {
     /* This does not check for file sizes, but should be good enough
@@ -503,10 +488,10 @@ async fn receive_inner(
             PeerMessageV2::FileStart(file_start) => file_start,
             PeerMessageV2::TransferAck(_) => {
                 bail!(TransferError::Protocol(format!("Unexpected message: got 'transfer-ack' but expected {} more 'file-start' messages", n_accepted - i).into_boxed_str()))
-            },
+            }
             other => {
                 bail!(TransferError::unexpected_message("file-start", other))
-            },
+            }
         };
         ensure!(
             file_start.file == file,
@@ -543,10 +528,10 @@ async fn receive_inner(
                         )
                             .into_boxed_str()
                         ))
-                    },
+                    }
                     other => {
                         bail!(TransferError::unexpected_message("payload", other))
-                    },
+                    }
                 };
 
             content.write_all(&payload).await?;
@@ -576,7 +561,7 @@ async fn receive_inner(
             PeerMessageV2::FileEnd(end) => end,
             other => {
                 bail!(TransferError::unexpected_message("file-end", other))
-            },
+            }
         };
     }
 
@@ -589,10 +574,10 @@ async fn receive_inner(
                         .to_string()
                         .into_boxed_str()
                 ))
-            },
+            }
             other => {
                 bail!(TransferError::unexpected_message("transfer-ack", other))
-            },
+            }
         };
 
     Ok(())

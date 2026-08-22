@@ -70,13 +70,10 @@ impl TransitAck {
 }
 
 pub(crate) async fn send(
-    wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    transit_abilities: transit::Abilities,
-    offer: OfferSend,
+    wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>,
+    transit_abilities: transit::Abilities, offer: OfferSend,
     progress_handler: impl FnMut(u64, u64) + 'static,
-    transit_handler: impl FnOnce(transit::TransitInfo),
-    _peer_version: AppVersion,
+    transit_handler: impl FnOnce(transit::TransitInfo), _peer_version: AppVersion,
     cancel: impl Future<Output = ()>,
 ) -> Result<(), TransferError> {
     if offer.is_multiple() {
@@ -115,7 +112,7 @@ pub(crate) async fn send(
                 let content = content();
                 let content = content.await?;
                 (content, size)
-            },
+            }
             _ => unreachable!(),
         };
         send_file(
@@ -134,15 +131,9 @@ pub(crate) async fn send(
 }
 
 pub(crate) async fn send_file<F, G, H>(
-    mut wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    file: &mut F,
-    file_name: impl Into<String>,
-    file_size: u64,
-    transit_abilities: transit::Abilities,
-    transit_handler: G,
-    progress_handler: H,
-    cancel: impl Future<Output = ()>,
+    mut wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, file: &mut F,
+    file_name: impl Into<String>, file_size: u64, transit_abilities: transit::Abilities,
+    transit_handler: G, progress_handler: H, cancel: impl Future<Output = ()>,
 ) -> Result<(), TransferError>
 where
     F: AsyncRead + Unpin + Send,
@@ -173,10 +164,10 @@ where
                 PeerMessage::Transit(transit) => {
                     tracing::debug!("Received transit message: {:?}", transit);
                     (transit.abilities_v1, transit.hints_v1)
-                },
+                }
                 other => {
                     bail!(TransferError::unexpected_message("transit", other))
-                },
+                }
             };
 
         {
@@ -187,13 +178,13 @@ where
             match fileack_msg.check_err()? {
                 PeerMessage::Answer(AnswerMessage::FileAck(msg)) => {
                     ensure!(msg == "ok", TransferError::AckError);
-                },
+                }
                 _ => {
                     bail!(TransferError::unexpected_message(
                         "answer/file_ack",
                         fileack_msg
                     ));
-                },
+                }
             }
         }
 
@@ -234,14 +225,10 @@ where
 }
 
 pub(crate) async fn send_folder(
-    mut wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    mut folder_name: String,
-    folder: OfferSendEntry,
-    transit_abilities: transit::Abilities,
+    mut wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>, mut folder_name: String,
+    folder: OfferSendEntry, transit_abilities: transit::Abilities,
     transit_handler: impl FnOnce(transit::TransitInfo),
-    progress_handler: impl FnMut(u64, u64) + 'static,
-    cancel: impl Future<Output = ()>,
+    progress_handler: impl FnMut(u64, u64) + 'static, cancel: impl Future<Output = ()>,
 ) -> Result<(), TransferError> {
     let run = Box::pin(async {
         let connector = transit::init(transit_abilities, None, relay_hints).await?;
@@ -279,9 +266,7 @@ pub(crate) async fn send_folder(
 
         /* Walk our offer recursively, concatenate all our readers into a stream that will build the tar file */
         fn create_offer(
-            mut total_content: Vec<WrappedDataFut>,
-            total_size: &mut u64,
-            offer: OfferSendEntry,
+            mut total_content: Vec<WrappedDataFut>, total_size: &mut u64, offer: OfferSendEntry,
             path: &mut Vec<String>,
         ) -> IoResult<Vec<WrappedDataFut>> {
             match offer {
@@ -296,7 +281,7 @@ pub(crate) async fn send_folder(
                         total_content = create_offer(total_content, total_size, file, path)?;
                         path.pop();
                     }
-                },
+                }
                 OfferSendEntry::RegularFile { size, content } => {
                     tracing::debug!("Adding file {path:?}; {size} bytes");
                     let header = tar_helper::create_header_file(path, size)?;
@@ -312,7 +297,7 @@ pub(crate) async fn send_folder(
                     );
                     total_content.push(Box::pin(content) as _);
                     total_content.push(wrap(padding));
-                },
+                }
                 // OfferSendEntry::Symlink { .. } => todo!(),
             }
             Ok(total_content)
@@ -347,20 +332,20 @@ pub(crate) async fn send_folder(
                 PeerMessage::Transit(transit) => {
                     tracing::debug!("received transit message: {:?}", transit);
                     (transit.abilities_v1, transit.hints_v1)
-                },
+                }
                 other => {
                     bail!(TransferError::unexpected_message("transit", other));
-                },
+                }
             };
 
         // Wait for file_ack
         match wormhole.receive_json::<PeerMessage>().await??.check_err()? {
             PeerMessage::Answer(AnswerMessage::FileAck(msg)) => {
                 ensure!(msg == "ok", TransferError::AckError);
-            },
+            }
             other => {
                 bail!(TransferError::unexpected_message("answer/file_ack", other));
-            },
+            }
         }
 
         let (mut transit, info) = connector
@@ -406,10 +391,8 @@ pub(crate) async fn send_folder(
  * Returns `None` if the task got cancelled.
  */
 pub async fn request(
-    mut wormhole: Wormhole,
-    relay_hints: Vec<transit::RelayHint>,
-    transit_abilities: transit::Abilities,
-    cancel: impl Future<Output = ()>,
+    mut wormhole: Wormhole, relay_hints: Vec<transit::RelayHint>,
+    transit_abilities: transit::Abilities, cancel: impl Future<Output = ()>,
 ) -> Result<Option<ReceiveRequest>, TransferError> {
     // Error handling
     let run = Box::pin(async {
@@ -430,10 +413,10 @@ pub async fn request(
                 PeerMessage::Transit(transit) => {
                     tracing::debug!("received transit message: {:?}", transit);
                     (transit.abilities_v1, transit.hints_v1)
-                },
+                }
                 other => {
                     bail!(TransferError::unexpected_message("transit", other));
-                },
+                }
             };
 
         // 3. receive file offer message from peer
@@ -448,12 +431,12 @@ pub async fn request(
                     } => {
                         dirname.push_str(".zip");
                         (dirname, zipsize)
-                    },
+                    }
                     _ => bail!(TransferError::UnsupportedOffer),
                 },
                 other => {
                     bail!(TransferError::unexpected_message("offer", other));
-                },
+                }
             };
 
         Ok((filename, filesize, connector, their_abilities, their_hints))
@@ -502,12 +485,8 @@ pub struct ReceiveRequest {
 
 impl ReceiveRequest {
     fn new(
-        file_name: String,
-        filesize: u64,
-        connector: TransitConnector,
-        their_abilities: transit::Abilities,
-        their_hints: transit::Hints,
-        wormhole: Wormhole,
+        file_name: String, filesize: u64, connector: TransitConnector,
+        their_abilities: transit::Abilities, their_hints: transit::Hints, wormhole: Wormhole,
     ) -> Self {
         let their_hints = Arc::new(their_hints);
         let mut content = BTreeMap::new();
@@ -540,10 +519,7 @@ impl ReceiveRequest {
      * This will transfer the file and save it on disk.
      */
     pub async fn accept<F, G, W>(
-        mut self,
-        transit_handler: G,
-        progress_handler: F,
-        content_handler: &mut W,
+        mut self, transit_handler: G, progress_handler: F, content_handler: &mut W,
         cancel: impl Future<Output = ()>,
     ) -> Result<(), TransferError>
     where
@@ -625,8 +601,7 @@ impl ReceiveRequest {
 pub(crate) async fn send_records<'a>(
     transit: &mut Transit,
     files: impl futures::Stream<Item = std::io::Result<Box<dyn AsyncRead + Unpin + Send + 'a>>>,
-    file_size: u64,
-    mut progress_handler: impl FnMut(u64, u64) + 'static,
+    file_size: u64, mut progress_handler: impl FnMut(u64, u64) + 'static,
 ) -> Result<Vec<u8>, TransferError> {
     // rough plan:
     // 1. Open the file
@@ -683,10 +658,7 @@ pub(crate) async fn send_records<'a>(
 }
 
 pub(crate) async fn receive_records<F, W>(
-    filesize: u64,
-    transit: &mut Transit,
-    mut progress_handler: F,
-    mut content_handler: W,
+    filesize: u64, transit: &mut Transit, mut progress_handler: F, mut content_handler: W,
 ) -> Result<Vec<u8>, TransferError>
 where
     F: FnMut(u64, u64) + 'static,
@@ -723,10 +695,7 @@ where
 }
 
 pub(crate) async fn tcp_file_receive<F, W>(
-    transit: &mut Transit,
-    filesize: u64,
-    progress_handler: F,
-    content_handler: &mut W,
+    transit: &mut Transit, filesize: u64, progress_handler: F, content_handler: &mut W,
 ) -> Result<(), TransferError>
 where
     F: FnMut(u64, u64) + 'static,
@@ -793,9 +762,7 @@ mod tar_helper {
     }
 
     fn append(
-        mut dst: &mut dyn std::io::Write,
-        header: &tar::Header,
-        mut data: &mut dyn std::io::Read,
+        mut dst: &mut dyn std::io::Write, header: &tar::Header, mut data: &mut dyn std::io::Read,
     ) -> std::io::Result<()> {
         dst.write_all(header.as_bytes())?;
         let len = std::io::copy(&mut data, &mut dst)?;
@@ -819,9 +786,7 @@ mod tar_helper {
     }
 
     fn prepare_header_path(
-        dst: &mut dyn std::io::Write,
-        header: &mut tar::Header,
-        path: &str,
+        dst: &mut dyn std::io::Write, header: &mut tar::Header, path: &str,
     ) -> std::io::Result<()> {
         // Try to encode the path directly in the header, but if it ends up not
         // working (probably because it's too long) then try to use the GNU-specific

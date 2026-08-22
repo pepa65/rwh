@@ -1,6 +1,9 @@
 use crate::core::*;
 use crypto_secretbox as secretbox;
-use crypto_secretbox::{KeyInit, XSalsa20Poly1305, aead::{Aead, AeadCore, generic_array::GenericArray}};
+use crypto_secretbox::{
+    KeyInit, XSalsa20Poly1305,
+    aead::{Aead, AeadCore, generic_array::GenericArray},
+};
 use hkdf::Hkdf;
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256, digest::FixedOutput};
@@ -131,9 +134,7 @@ impl VersionsMessage {
 }
 
 pub fn build_version_msg(
-    side: &MySide,
-    key: &secretbox::Key,
-    versions: &VersionsMessage,
+    side: &MySide, key: &secretbox::Key, versions: &VersionsMessage,
 ) -> (Phase, Vec<u8>) {
     let phase = Phase::VERSION;
     let data_key = derive_phase_key(side, key, &phase);
@@ -149,9 +150,7 @@ pub fn extract_pake_msg(body: &[u8]) -> Result<Vec<u8>, WormholeError> {
 }
 
 fn encrypt_data_with_nonce(
-    key: &secretbox::Key,
-    plaintext: &[u8],
-    nonce: &secretbox::Nonce,
+    key: &secretbox::Key, plaintext: &[u8], nonce: &secretbox::Nonce,
 ) -> Vec<u8> {
     let cipher = XSalsa20Poly1305::new(GenericArray::from_slice(key));
     let mut ciphertext = cipher.encrypt(nonce, plaintext).unwrap();
@@ -347,10 +346,10 @@ mod test {
         match decrypt_data(&k, &encrypted) {
             Some(plaintext) => {
                 assert_eq!(hex::encode(plaintext), "edc089a518219ec1cee184e89d2d37af");
-            },
+            }
             None => {
                 panic!("failed to decrypt");
-            },
+            }
         };
     }
 

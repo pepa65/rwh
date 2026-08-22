@@ -269,14 +269,14 @@ impl<'de> serde::Deserialize<'de> for Abilities {
             match ability {
                 Ability::DirectTcpV1 => {
                     abilities.direct_tcp_v1 = true;
-                },
+                }
                 Ability::RelayV1 => {
                     abilities.relay_v1 = true;
-                },
+                }
                 #[cfg(any())]
                 Ability::NoiseCryptoV1 => {
                     abilities.noise_v1 = true;
-                },
+                }
                 _ => (),
             }
         }
@@ -331,12 +331,12 @@ impl<'de> serde::Deserialize<'de> for Hints {
             match hint {
                 HintSerde::DirectTcpV1(hint) => {
                     direct_tcp.insert(hint);
-                },
+                }
                 HintSerde::RelayV1(hint) => {
                     relay_v2.push(hint);
-                },
+                }
                 /* Ignore unknown hints */
-                _ => {},
+                _ => {}
             }
         }
 
@@ -454,8 +454,7 @@ pub struct RelayHint {
 impl RelayHint {
     /// Create a new relay hint
     pub fn new(
-        name: Option<String>,
-        tcp: impl IntoIterator<Item = DirectHint>,
+        name: Option<String>, tcp: impl IntoIterator<Item = DirectHint>,
         ws: impl IntoIterator<Item = url::Url>,
     ) -> Self {
         Self {
@@ -487,8 +486,7 @@ impl RelayHint {
     /// let hint = transit::RelayHint::from_urls(url.host_str().map(str::to_owned), [url]).unwrap();
     /// ```
     pub fn from_urls(
-        name: Option<String>,
-        urls: impl IntoIterator<Item = url::Url>,
+        name: Option<String>, urls: impl IntoIterator<Item = url::Url>,
     ) -> Result<Self, RelayHintParseError> {
         let mut this = Self {
             name,
@@ -507,10 +505,10 @@ impl RelayHint {
                         _ => bail!(RelayHintParseError::InvalidTcp(url)),
                     };
                     this.tcp.insert(DirectHint { hostname, port });
-                },
+                }
                 "ws" | "wss" => {
                     this.ws.insert(url);
-                },
+                }
                 other => bail!(RelayHintParseError::UnknownSchema(other.into())),
             }
         }
@@ -582,12 +580,12 @@ impl<'de> serde::Deserialize<'de> for RelayHint {
             match e {
                 RelayHintSerdeInner::Tcp(tcp) => {
                     hint.tcp.insert(tcp);
-                },
+                }
                 RelayHintSerdeInner::Websocket { url } => {
                     hint.ws.insert(url);
-                },
+                }
                 /* Ignore unknown hints */
-                _ => {},
+                _ => {}
             }
         }
 
@@ -685,21 +683,21 @@ impl std::fmt::Display for TransitInfo {
                     "Established direct transit connection to '{}'",
                     self.peer_addr,
                 )
-            },
+            }
             ConnectionType::Relay { name: Some(name) } => {
                 write!(
                     f,
                     "Established transit connection via relay '{}' ({})",
                     name, self.peer_addr,
                 )
-            },
+            }
             ConnectionType::Relay { name: None } => {
                 write!(
                     f,
                     "Established transit connection via relay ({})",
                     self.peer_addr,
                 )
-            },
+            }
         }
     }
 }
@@ -710,13 +708,13 @@ impl std::fmt::Display for TransitInfo {
         match &self.conn_type {
             ConnectionType::Direct => {
                 write!(f, "Established direct transit connection",)
-            },
+            }
             ConnectionType::Relay { name: Some(name) } => {
                 write!(f, "Established transit connection via relay '{}'", name)
-            },
+            }
             ConnectionType::Relay { name: None } => {
                 write!(f, "Established transit connection via relay",)
-            },
+            }
         }
     }
 }
@@ -727,9 +725,7 @@ impl std::fmt::Display for TransitInfo {
  * Bind a port and generate our [`Hints`]. This does not do any communication yet.
  */
 pub async fn init(
-    mut abilities: Abilities,
-    peer_abilities: Option<Abilities>,
-    relay_hints: Vec<RelayHint>,
+    mut abilities: Abilities, peer_abilities: Option<Abilities>, relay_hints: Vec<RelayHint>,
 ) -> Result<TransitConnector, std::io::Error> {
     let mut our_hints = Hints::default();
     #[cfg(not(target_family = "wasm"))]
@@ -767,7 +763,7 @@ pub async fn init(
                         stream.peer_addr()?,
                     );
                     stream.into()
-                },
+                }
                 // TODO replace with .flatten() once stable
                 // https://github.com/rust-lang/rust/issues/70142
                 Err(err) | Ok(Err(err)) => {
@@ -783,7 +779,7 @@ pub async fn init(
                     );
 
                     socket.into()
-                },
+                }
             };
 
             /* Get a second socket, but this time open a listener on that port.
@@ -907,21 +903,18 @@ impl TransitConnector {
     /// One side must call with `role` set to [`TransitRole::Leader`]
     /// and the other with [`TransitRole::Follower`].
     pub async fn connect(
-        self,
-        role: TransitRole,
-        transit_key: Key<TransitKey>,
-        their_abilities: Abilities,
+        self, role: TransitRole, transit_key: Key<TransitKey>, their_abilities: Abilities,
         their_hints: Arc<Hints>,
     ) -> Result<(Transit, TransitInfo), TransitConnectError> {
         match role {
             TransitRole::Leader => {
                 self.leader_connect(transit_key, their_abilities, their_hints)
                     .await
-            },
+            }
             TransitRole::Follower => {
                 self.follower_connect(transit_key, their_abilities, their_hints)
                     .await
-            },
+            }
         }
     }
 
@@ -929,10 +922,7 @@ impl TransitConnector {
      * Connect to the other side, as sender.
      */
     async fn leader_connect(
-        self,
-        transit_key: Key<TransitKey>,
-        their_abilities: Abilities,
-        their_hints: Arc<Hints>,
+        self, transit_key: Key<TransitKey>, their_abilities: Abilities, their_hints: Arc<Hints>,
     ) -> Result<(Transit, TransitInfo), TransitConnectError> {
         let Self {
             #[cfg(not(target_family = "wasm"))]
@@ -960,7 +950,7 @@ impl TransitConnector {
                     Err(err) => {
                         tracing::debug!("Some leader handshake failed: {:?}", err);
                         None
-                    },
+                    }
                 }
             }),
         );
@@ -1035,10 +1025,7 @@ impl TransitConnector {
      * Connect to the other side, as receiver
      */
     async fn follower_connect(
-        self,
-        transit_key: Key<TransitKey>,
-        their_abilities: Abilities,
-        their_hints: Arc<Hints>,
+        self, transit_key: Key<TransitKey>, their_abilities: Abilities, their_hints: Arc<Hints>,
     ) -> Result<(Transit, TransitInfo), TransitConnectError> {
         let Self {
             #[cfg(not(target_family = "wasm"))]
@@ -1065,7 +1052,7 @@ impl TransitConnector {
                     Err(err) => {
                         tracing::debug!("Some follower handshake failed: {:?}", err);
                         None
-                    },
+                    }
                 }
             }),
         );
@@ -1086,11 +1073,11 @@ impl TransitConnector {
                     })?;
 
                 Ok((Transit { socket, tx, rx }, conn_info))
-            },
+            }
             Ok(None) | Err(_) => {
                 tracing::debug!("`follower_connect` timed out");
                 Err(TransitConnectError::Handshake)
-            },
+            }
         };
 
         /* Cancel all remaining non-finished handshakes. We could send "nevermind" to explicitly tell
@@ -1111,12 +1098,8 @@ impl TransitConnector {
      * value are cancelled/dropped.
      */
     fn connect_inner(
-        is_leader: bool,
-        transit_key: Arc<Key<TransitKey>>,
-        our_abilities: Abilities,
-        our_hints: Arc<Hints>,
-        their_abilities: Abilities,
-        their_hints: Arc<Hints>,
+        is_leader: bool, transit_key: Arc<Key<TransitKey>>, our_abilities: Abilities,
+        our_hints: Arc<Hints>, their_abilities: Abilities, their_hints: Arc<Hints>,
         #[cfg(not(target_family = "wasm"))] sockets: Option<(MaybeConnectedSocket, TcpListener)>,
     ) -> impl Stream<Item = Result<HandshakeResult, TransitHandshakeError>> + 'static {
         /* Have Some(sockets) → Can direct */
@@ -1338,7 +1321,7 @@ impl TransitConnector {
                                         err
                                     );
                                     continue;
-                                },
+                                }
                             }
                         }
                     })
@@ -1428,12 +1411,8 @@ type HandshakeResult = (
  * into all others).
  */
 async fn handshake_exchange(
-    is_leader: bool,
-    tside: Arc<String>,
-    mut socket: Box<dyn TransitTransport>,
-    host_type: &ConnectionType,
-    cryptor: &dyn crypto::TransitCryptoInit,
-    key: Arc<Key<TransitKey>>,
+    is_leader: bool, tside: Arc<String>, mut socket: Box<dyn TransitTransport>,
+    host_type: &ConnectionType, cryptor: &dyn crypto::TransitCryptoInit, key: Arc<Key<TransitKey>>,
 ) -> Result<
     (
         Box<dyn TransitTransport>,
