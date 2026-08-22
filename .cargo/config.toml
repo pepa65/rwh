@@ -1,5 +1,5 @@
 [alias]
-rel = "build --release --target x86_64-unknown-linux-musl"
+rel = "build --release --target x86_64-unknown-linux-musl --bin rwh"
 inst = "install --target x86_64-unknown-linux-musl --path ."
 clip = "clippy --release --all-targets --features all"
 pub = "publish"
