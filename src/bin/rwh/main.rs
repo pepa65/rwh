@@ -614,9 +614,7 @@ fn create_progress_bar(file_size: u64) -> ProgressBar {
 	};
 
 	let pb = ProgressBar::new(file_size);
-	if *NO_COLOR.get().unwrap() {
-		pb.set_style(ProgressStyle::default_bar().template(template).unwrap().progress_chars("#>-"));
-	}
+	pb.set_style(ProgressStyle::default_bar().template(template).unwrap().progress_chars("#>-"));
 	pb
 }
 
@@ -643,44 +641,52 @@ fn print_welcome(term: &mut Term, welcome: Option<&str>) -> eyre::Result<()> {
 fn sender_print_code(term: &mut Term, code: &rwh::Code, rendezvous_server: &Option<url::Url>, qr: bool) -> eyre::Result<()> {
 	let uri = rwh::uri::WormholeTransferUri { code: code.clone(), rendezvous_server: rendezvous_server.clone(), is_leader: false }.to_string();
 
-	if cfg!(feature = "clipboard") {
-		if *NO_COLOR.get().unwrap() {
-			writeln!(term, "Code: {} (also copied to the clipboard)", style(&code).bold())?;
-		} else {
-			writeln!(term, "Code: {} (also copied to the clipboard)", code)?;
-		}
-	} else {
-		if *NO_COLOR.get().unwrap() {
-			writeln!(term, "Code: {}", style(&code).bold())?;
-		} else {
-			writeln!(term, "Code: {}", code)?;
-		}
-	};
-
 	if !qr {
 		tracing::debug!("QR option not enabled. Skipping QR code generation.");
 	} else {
-		writeln!(term)?;
 		let qr_code = qr2term::generate_qr_string(&uri).context("Failed to generate QR code for send link")?;
 		writeln!(term, "{qr_code}")?;
 	};
 
-	writeln!(term, "Link: \u{001B}]8;;{}\u{001B}\\{}\u{001B}]8;;\u{001B}\\", uri, uri)?;
-
-	writeln!(term, "Command: {} {}", style("rwh r").bold(), style(&code).bold())?;
+	if *NO_COLOR.get().unwrap() {
+		if cfg!(feature = "clipboard") {
+			writeln!(term, "Code: {} (also copied to the clipboard)", code)?;
+		} else {
+			writeln!(term, "Code: {}", code)?;
+		};
+		writeln!(term, "Link: {}", uri)?;
+		writeln!(term, "Cmd:  rwh r {}", code)?;
+	} else {
+		if cfg!(feature = "clipboard") {
+			writeln!(term, "Code: {} (also copied to the clipboard)", style(&code).bold())?;
+		} else {
+			writeln!(term, "Code: {}", style(&code).bold())?;
+		};
+		writeln!(term, "Link: {}", style(uri).bold())?;
+		writeln!(term, "Cmd:  {} {}", style("rwh r").bold(), style(&code).bold())?;
+	}
 	Ok(())
 }
 
 // For port forwarding
 fn server_print_code(term: &mut Term, code: &rwh::Code, _: &Option<url::Url>, _qr: bool) -> eyre::Result<()> {
-	if cfg!(feature = "clipboard") {
-		writeln!(term, "\nThis wormhole's code is: {} (it has been copied to your clipboard)", style(&code).bold())?;
+	if *NO_COLOR.get().unwrap() {
+		if cfg!(feature = "clipboard") {
+			writeln!(term, "\nThis wormhole's code is: {} (it has been copied to your clipboard)", code)?;
+		} else {
+			writeln!(term, "\nThis wormhole's code is: {}", code)?;
+		};
+		writeln!(term, "On the other side, enter that code into a Magic Wormhole client\n")?;
+		writeln!(term, "For example: rwh forward connect {}\n", code)?;
 	} else {
-		writeln!(term, "\nThis wormhole's code is: {}", style(&code).bold())?;
+		if cfg!(feature = "clipboard") {
+			writeln!(term, "\nThis wormhole's code is: {} (it has been copied to your clipboard)", style(&code).bold())?;
+		} else {
+			writeln!(term, "\nThis wormhole's code is: {}", style(&code).bold())?;
+		};
+		writeln!(term, "On the other side, enter that code into a Magic Wormhole client\n")?;
+		writeln!(term, "For example: {} {}\n", style("wormhole-rs forward connect").bold(), style(&code).bold())?;
 	}
-
-	writeln!(term, "On the other side, enter that code into a Magic Wormhole client\n")?;
-	writeln!(term, "For example: {} {}\n", style("wormhole-rs forward connect").bold(), style(&code).bold())?;
 	Ok(())
 }
 
