@@ -38,10 +38,9 @@ pub mod transit;
 pub mod uri;
 
 pub use crate::core::{
-    AppConfig, AppID, Code, MailboxConnection, Mood, Nameplate, ParseCodeError,
-    ParseNameplateError, ParsePasswordError, Password, Wormhole, WormholeError,
-    key::{Key, KeyPurpose, WormholeKey},
-    rendezvous,
+	AppConfig, AppID, Code, MailboxConnection, Mood, Nameplate, ParseCodeError, ParseNameplateError, ParsePasswordError, Password, Wormhole, WormholeError,
+	key::{Key, KeyPurpose, WormholeKey},
+	rendezvous,
 };
 
 #[doc(hidden)]

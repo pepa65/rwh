@@ -2,7 +2,5 @@
 
 #[test]
 fn trycmd() {
-    trycmd::TestCases::new()
-        .case("tests/cmd/*.trycmd")
-        .case("tests/cmd/*.toml");
+	trycmd::TestCases::new().case("tests/cmd/*.trycmd").case("tests/cmd/*.toml");
 }

@@ -1,17 +1,17 @@
 use base64::Engine;
 
 macro_rules! ensure {
-    ($cond:expr_2021, $err:expr_2021 $(,)?) => {
-        if !$cond {
-            return std::result::Result::Err($err.into());
-        }
-    };
+	($cond:expr_2021, $err:expr_2021 $(,)?) => {
+		if !$cond {
+			return std::result::Result::Err($err.into());
+		}
+	};
 }
 
 macro_rules! bail {
-    ($err:expr_2021 $(,)?) => {{
-        return std::result::Result::Err($err.into());
-    }};
+	($err:expr_2021 $(,)?) => {{
+		return std::result::Result::Err($err.into());
+	}};
 }
 
 /**
@@ -21,99 +21,73 @@ macro_rules! bail {
  */
 #[expect(unused)]
 pub fn sodium_increment_le(n: &mut [u8]) {
-    let mut c = 1u16;
-    for b in n {
-        c += *b as u16;
-        *b = c as u8;
-        c >>= 8;
-    }
+	let mut c = 1u16;
+	for b in n {
+		c += *b as u16;
+		*b = c as u8;
+		c >>= 8;
+	}
 }
 
 pub fn sodium_increment_be(n: &mut [u8]) {
-    let mut c = 1u16;
-    for b in n.iter_mut().rev() {
-        c += *b as u16;
-        *b = c as u8;
-        c >>= 8;
-    }
+	let mut c = 1u16;
+	for b in n.iter_mut().rev() {
+		c += *b as u16;
+		*b = c as u8;
+		c >>= 8;
+	}
 }
 
 /** Mint a new hashcash token with a given difficulty and resource string. */
 pub fn hashcash(resource: String, bits: u32) -> String {
-    use rand::{RngExt, distr::StandardUniform};
-    use sha1::{Digest, Sha1};
+	use rand::{RngExt, distr::StandardUniform};
+	use sha1::{Digest, Sha1};
 
-    if bits > 32 {
-        tracing::warn!(
-            "Minting a hashcash token with {} bits. If the application is frozen, you'll know why",
-            bits
-        );
-    }
+	if bits > 32 {
+		tracing::warn!("Minting a hashcash token with {} bits. If the application is frozen, you'll know why", bits);
+	}
 
-    /* This is the `[year][month][day]` format, but without activating the parser */
-    use time::format_description::{Component, FormatItem};
-    let format = [
-        FormatItem::Component(Component::CalendarYearFullStandardRange(
-            time::format_description::modifier::CalendarYearFullStandardRange::default(),
-        )),
-        FormatItem::Component(Component::MonthNumerical(
-            time::format_description::modifier::MonthNumerical::default(),
-        )),
-        FormatItem::Component(Component::Day(
-            time::format_description::modifier::Day::default(),
-        )),
-    ];
+	/* This is the `[year][month][day]` format, but without activating the parser */
+	use time::format_description::{Component, FormatItem};
+	let format = [
+		FormatItem::Component(Component::CalendarYearFullStandardRange(time::format_description::modifier::CalendarYearFullStandardRange::default())),
+		FormatItem::Component(Component::MonthNumerical(time::format_description::modifier::MonthNumerical::default())),
+		FormatItem::Component(Component::Day(time::format_description::modifier::Day::default())),
+	];
 
-    let base64_engine = base64::engine::general_purpose::STANDARD;
+	let base64_engine = base64::engine::general_purpose::STANDARD;
 
-    /* I'm pretty sure HashCash should work with any time zone */
-    let date = base64_engine.encode(
-        time::OffsetDateTime::now_utc()
-            .date()
-            .format(&format[..])
-            .unwrap(),
-    );
+	/* I'm pretty sure HashCash should work with any time zone */
+	let date = base64_engine.encode(time::OffsetDateTime::now_utc().date().format(&format[..]).unwrap());
 
-    let rand: String = base64_engine.encode(
-        rand::rng()
-            .sample_iter(StandardUniform)
-            .take(16)
-            .collect::<Vec<u8>>(),
-    );
+	let rand: String = base64_engine.encode(rand::rng().sample_iter(StandardUniform).take(16).collect::<Vec<u8>>());
 
-    /* 64 bit counter should suffice */
-    let mut counter = [0; 8];
-    let mut hasher = Sha1::new();
+	/* 64 bit counter should suffice */
+	let mut counter = [0; 8];
+	let mut hasher = Sha1::new();
 
-    loop {
-        sodium_increment_be(&mut counter);
+	loop {
+		sodium_increment_be(&mut counter);
 
-        let stamp = format!(
-            "1:{}:{}:{}::{}:{}",
-            bits,
-            date,
-            resource,
-            rand,
-            base64_engine.encode(counter)
-        );
+		let stamp = format!("1:{}:{}:{}::{}:{}", bits, date, resource, rand, base64_engine.encode(counter));
 
-        hasher.update(&stamp);
-        let result = hasher.finalize_reset();
+		hasher.update(&stamp);
+		let result = hasher.finalize_reset();
 
-        let mut leading_zeros = 0;
-        for byte in result {
-            let front_zeros = byte.leading_zeros();
-            leading_zeros += front_zeros;
+		let mut leading_zeros = 0;
+		for byte in result {
+			let front_zeros = byte.leading_zeros();
+			leading_zeros += front_zeros;
 
-            if front_zeros < 8 {
-                break;
-            }
-        }
+			if front_zeros < 8 {
+				break;
+			}
+		}
 
-        if leading_zeros >= bits {
-            return stamp;
-        }
-    }
+		if leading_zeros >= bits {
+			return stamp;
+		}
+	}
 }
 
 /// The error type returned by [`timeout`]
@@ -123,59 +97,51 @@ pub(crate) struct TimeoutError;
 
 /// Utility function to call async timer implementations for WASM and others
 pub(crate) async fn sleep(timeout: std::time::Duration) {
-    #[cfg(target_family = "wasm")]
-    wasmtimer::tokio::sleep(timeout).await;
-    #[cfg(not(target_family = "wasm"))]
-    async_io::Timer::after(timeout).await;
+	#[cfg(target_family = "wasm")]
+	wasmtimer::tokio::sleep(timeout).await;
+	#[cfg(not(target_family = "wasm"))]
+	async_io::Timer::after(timeout).await;
 }
 
 /// Utility function to add a timeout to a future
 ///
 /// This behaves the same as async std timeout, but with async-io
 pub(crate) fn timeout<'a, R, F: std::future::Future<Output = R> + 'a>(
-    timeout: std::time::Duration, future: F,
+	timeout: std::time::Duration, future: F,
 ) -> impl Future<Output = Result<R, TimeoutError>> + 'a {
-    let timeout_future = async move {
-        sleep(timeout).await;
-        Err(TimeoutError)
-    };
+	let timeout_future = async move {
+		sleep(timeout).await;
+		Err(TimeoutError)
+	};
 
-    futures_lite::future::or(async { Ok(future.await) }, timeout_future)
+	futures_lite::future::or(async { Ok(future.await) }, timeout_future)
 }
 
 #[cfg(any(test, feature = "forwarding"))]
 fn executor() -> &'static async_executor::Executor<'static> {
-    const NUM_THREADS: usize = 3;
-    static EXECUTOR: std::sync::LazyLock<async_executor::Executor> =
-        std::sync::LazyLock::new(|| {
-            let ex = async_executor::Executor::new();
+	const NUM_THREADS: usize = 3;
+	static EXECUTOR: std::sync::LazyLock<async_executor::Executor> = std::sync::LazyLock::new(|| {
+		let ex = async_executor::Executor::new();
 
-            for n in 1..=NUM_THREADS {
-                std::thread::Builder::new()
-                    .name(format!("magic-wormhole-{}", n))
-                    .spawn(|| {
-                        loop {
-                            std::panic::catch_unwind(|| {
-                                async_io::block_on(
-                                    executor().run(futures_lite::future::pending::<()>()),
-                                )
-                            })
-                            .ok();
-                        }
-                    })
-                    .expect("cannot spawn executor thread");
-            }
+		for n in 1..=NUM_THREADS {
+			std::thread::Builder::new()
+				.name(format!("magic-wormhole-{}", n))
+				.spawn(|| {
+					loop {
+						std::panic::catch_unwind(|| async_io::block_on(executor().run(futures_lite::future::pending::<()>()))).ok();
+					}
+				})
+				.expect("cannot spawn executor thread");
+		}
 
-            ex.spawn(async_process::driver()).detach();
-            ex
-        });
-    &EXECUTOR
+		ex.spawn(async_process::driver()).detach();
+		ex
+	});
+	&EXECUTOR
 }
 
 /// Utility function to spawn a future. We don't use crate::util::spawn, because not the entirety of smol compiles on WASM
 #[cfg(any(test, feature = "forwarding"))]
-pub(crate) fn spawn<T: Send + 'static>(
-    future: impl Future<Output = T> + Send + 'static,
-) -> async_task::Task<T> {
-    executor().spawn(future)
+pub(crate) fn spawn<T: Send + 'static>(future: impl Future<Output = T> + Send + 'static) -> async_task::Task<T> {
+	executor().spawn(future)
 }
