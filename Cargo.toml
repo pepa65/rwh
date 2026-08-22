@@ -37,10 +37,10 @@ serde = { version = "1.0.120", features = ["rc"] }
 serde_json = "1.0.61"
 serde_derive = "1.0.120"
 crypto_secretbox = "0.1.1"
-spake2 = "0.4.0"
+spake2 = "0.4"
 sha1 = "0.11"
 sha2 = "0.11"
-hkdf = "0.13.0"
+hkdf = "0.13"
 hex = { version = "0.4.2", features = ["serde"] }
 rand = "0.10.2"
 base64 = "0.23.1"
@@ -79,10 +79,10 @@ env_logger = "0.11"
 console = "0.16"
 indicatif = "0.18"
 dialoguer = { version = "0.12", features = ["completion"] }
-color-eyre = "0.6.0"
+color-eyre = "0.6"
 unit-prefix = "0.5"
 ctrlc = "3.2.1"
-qr2term = "0.3.0"
+qr2term = "0.3"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Clipboard
@@ -93,7 +93,7 @@ libc = "0.2.101"
 async-executor = "1.13"
 async-process = { version = "2.5.0", optional = true }
 async-tungstenite = { version = "0.35", features = ["smol-runtime"] }
-async-io = "2.2.0"
+async-io = "2.2"
 async-net = "2.0"
 async-fs = "2.0"
 
@@ -109,7 +109,7 @@ wasmtimer = "0.4"
 [dev-dependencies]
 test-log = { version = "0.2", features = ["trace"] }
 eyre = "0.6.5"
-async-process = "2.5.0"
+async-process = "2.5"
 macro_rules_attr = "0.2"
 trycmd = "1.2"
 
