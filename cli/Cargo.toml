@@ -35,7 +35,7 @@ rand = { workspace = true }
 smol = { workspace = true }
 
 # CLI specific dependencies
-rwhlib = { path = "..", features = ["futures-rustls-native-certs"] }
+rwhlib = { path = "..", version = "0.10", features = ["futures-rustls-native-certs"] }
 clap = { workspace = true, features = ["cargo", "derive", "help", "env"] }
 clap_complete = { workspace = true }
 env_logger = { workspace = true }
