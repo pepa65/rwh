@@ -614,7 +614,9 @@ fn create_progress_bar(file_size: u64) -> ProgressBar {
 	};
 
 	let pb = ProgressBar::new(file_size);
-	pb.set_style(ProgressStyle::default_bar().template(template).unwrap().progress_chars("#>-"));
+	if *NO_COLOR.get().unwrap() {
+		pb.set_style(ProgressStyle::default_bar().template(template).unwrap().progress_chars("#>-"));
+	}
 	pb
 }
 
@@ -642,9 +644,17 @@ fn sender_print_code(term: &mut Term, code: &rwh::Code, rendezvous_server: &Opti
 	let uri = rwh::uri::WormholeTransferUri { code: code.clone(), rendezvous_server: rendezvous_server.clone(), is_leader: false }.to_string();
 
 	if cfg!(feature = "clipboard") {
-		writeln!(term, "\nCode: {} (also copied to your clipboard)", style(&code).bold())?;
+		if *NO_COLOR.get().unwrap() {
+			writeln!(term, "Code: {} (also copied to the clipboard)", style(&code).bold())?;
+		} else {
+			writeln!(term, "Code: {} (also copied to the clipboard)", code)?;
+		}
 	} else {
-		writeln!(term, "\nCode: {}", style(&code).bold())?;
+		if *NO_COLOR.get().unwrap() {
+			writeln!(term, "Code: {}", style(&code).bold())?;
+		} else {
+			writeln!(term, "Code: {}", code)?;
+		}
 	};
 
 	if !qr {
@@ -657,7 +667,7 @@ fn sender_print_code(term: &mut Term, code: &rwh::Code, rendezvous_server: &Opti
 
 	writeln!(term, "Link: \u{001B}]8;;{}\u{001B}\\{}\u{001B}]8;;\u{001B}\\", uri, uri)?;
 
-	writeln!(term, "Run on the other side: {} {}\n", style("rwh r").bold(), style(&code).bold())?;
+	writeln!(term, "Command: {} {}", style("rwh r").bold(), style(&code).bold())?;
 	Ok(())
 }
 

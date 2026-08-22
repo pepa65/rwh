@@ -270,7 +270,8 @@ mod test {
 
 		assert_eq!(list.get_completions("22"), Vec::<String>::new());
 		assert_eq!(list.get_completions("22-"), Vec::<String>::new());
-		assert!(list.get_completions("22-troj").is_empty());
+
+		assert_eq!(list.get_completions("22-troj").first().unwrap(), "22-asteroid");
 
 		assert_eq!(list.get_completions("22-decd").first().unwrap(), "22-decadence");
 
