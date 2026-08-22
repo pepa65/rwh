@@ -2,7 +2,6 @@
 
 use super::{Mood, Phase};
 use futures_concurrency::prelude::*;
-use rand::Rng;
 use std::{borrow::Cow, str::FromStr, time::Duration};
 
 #[cfg(feature = "transfer")]
