@@ -261,12 +261,18 @@ struct WormholeCli {
 }
 static NO_COLOR: OnceLock<bool> = OnceLock::new();
 
-fn main() -> eyre::Result<()> {
-	smol::block_on(async_main())
+fn main() {
+	if let Err(e) = smol::block_on(async_main()) {
+		eprintln!("{e}");
+		std::process::exit(1);
+	}
 }
 
 async fn async_main() -> eyre::Result<()> {
-	color_eyre::install()?;
+	color_eyre::config::HookBuilder::default()
+		.display_location_section(false)
+		.display_env_section(false)
+		.install()?;
 
 	let app = WormholeCli::parse();
 	NO_COLOR.set(app.no_color).expect("");
@@ -562,8 +568,10 @@ async fn parse_and_connect(
 
 async fn make_send_offer(mut files: Vec<PathBuf>, file_name: Option<String>) -> eyre::Result<transfer::offer::OfferSend> {
 	for file in &files {
-		let path = std::path::PathBuf::from(file);
-		eyre::ensure!(smol::unblock(move || path.exists()).await, "{} does not exist", file.display());
+		let path = file.clone();
+		if let Err(e) = smol::unblock(move || std::fs::metadata(&path)).await {
+			eyre::bail!("No access to {}: {}", file.display(), e);
+		}
 	}
 	tracing::trace!("Making send offer in {files:?}, with name {file_name:?}");
 
@@ -577,24 +585,24 @@ async fn make_send_offer(mut files: Vec<PathBuf>, file_name: Option<String>) -> 
 			let file = files.remove(0);
 			let file_name = file
 				.file_name()
-				.ok_or_else(|| eyre::format_err!("You can't send a file without a name. Maybe try --rename"))?
+				.ok_or_else(|| eyre::format_err!("No filename, use --rename"))?
 				.to_str()
-				.ok_or_else(|| eyre::format_err!("File path must be a valid UTF-8 string"))?
+				.ok_or_else(|| eyre::format_err!("No UTF-8 filename"))?
 				.to_owned();
 			Ok(transfer::offer::OfferSend::new_file_or_folder(file_name, file).await?)
 		}
-		(_, Some(_)) => Err(eyre::format_err!("Can't customize file name when sending multiple files")),
+		(_, Some(_)) => Err(eyre::format_err!("Flag --rename is not allowed with --to-many")),
 		(_, None) => {
 			let mut names = std::collections::BTreeMap::new();
 			for path in &files {
 				eyre::ensure!(
 					path.file_name().is_some(),
-					"'{}' has no name. You need to send it separately and use the --rename flag, or rename it on the file system",
+					"'{}' needs to be send separately with --rename flag (or rename it first)",
 					path.display()
 				);
 				if let Some(old) = names.insert(path.file_name(), path) {
 					eyre::bail!(
-						"'{}' and '{}' have the same file name. Rename one of them on disk, or send them in separate transfers",
+						"Same paths: '{}' and '{}', send separately or rename one first",
 						old.display(),
 						path.display(),
 					);
@@ -673,20 +681,18 @@ fn sender_print_code(term: &mut Term, code: &rwh::Code, rendezvous_server: &Opti
 fn server_print_code(term: &mut Term, code: &rwh::Code, _: &Option<url::Url>, _qr: bool) -> eyre::Result<()> {
 	if *NO_COLOR.get().unwrap() {
 		if cfg!(feature = "clipboard") {
-			writeln!(term, "\nThis wormhole's code is: {} (it has been copied to your clipboard)", code)?;
+			writeln!(term, "Code: {} (also copied to the clipboard)", code)?;
 		} else {
-			writeln!(term, "\nThis wormhole's code is: {}", code)?;
+			writeln!(term, "Code: {}", code)?;
 		};
-		writeln!(term, "On the other side, enter that code into a Magic Wormhole client\n")?;
-		writeln!(term, "For example: rwh forward connect {}\n", code)?;
+		writeln!(term, "Cmd:  rwh f connect {}\n", code)?;
 	} else {
 		if cfg!(feature = "clipboard") {
-			writeln!(term, "\nThis wormhole's code is: {} (it has been copied to your clipboard)", style(&code).bold())?;
+			writeln!(term, "Code: {} (also copied to the clipboard)", style(&code).bold())?;
 		} else {
-			writeln!(term, "\nThis wormhole's code is: {}", style(&code).bold())?;
+			writeln!(term, "Code: {}", style(&code).bold())?;
 		};
-		writeln!(term, "On the other side, enter that code into a Magic Wormhole client\n")?;
-		writeln!(term, "For example: {} {}\n", style("wormhole-rs forward connect").bold(), style(&code).bold())?;
+		writeln!(term, "Cmd:  {} {}", style("rwh f connect").bold(), style(&code).bold())?;
 	}
 	Ok(())
 }
@@ -707,9 +713,7 @@ async fn send_many(
 	relay_hints: Vec<transit::RelayHint>, code: &rwh::Code, files: Vec<PathBuf>, file_name: Option<String>, max_tries: u64, timeout: Duration,
 	wormhole: Wormhole, term: &mut Term, transit_abilities: transit::Abilities,
 ) -> eyre::Result<()> {
-	tracing::warn!(
-		"Reminder that you are sending the file to multiple people, and this may reduce the overall security. See the help page for more information."
-	);
+	tracing::warn!("Sending to multiple people reduces overall security!");
 
 	// Progress bar is commented out for now. See the issues about threading/async in
 	// the Indicatif repository for more information. Multiple progress bars are not usable
@@ -731,11 +735,11 @@ async fn send_many(
 
 	for tries in 0.. {
 		if time.elapsed() >= timeout {
-			tracing::info!("{:?} have elapsed, we won't accept any new connections now.", timeout);
+			tracing::info!("{:?}s have elapsed, no longer accepting new connections", timeout);
 			break;
 		}
 		if tries > max_tries {
-			tracing::info!("Max number of tries reached, we won't accept any new connections now.");
+			tracing::info!("Max.number of attempts reached, no longer accepting new connections");
 			break;
 		}
 
@@ -757,7 +761,7 @@ async fn send_many(
 		relay_hints: Vec<transit::RelayHint>, offer: transfer::offer::OfferSend, wormhole: Wormhole, mut term: Term, mp: &MultiProgress,
 		transit_abilities: transit::Abilities, cancel: impl Future<Output = ()> + Send + 'static,
 	) -> eyre::Result<()> {
-		writeln!(&mut term, "Sending file to peer").unwrap();
+		writeln!(&mut term, "Sending file now").unwrap();
 		let pb = create_progress_bar(0);
 		let pb = mp.add(pb);
 		smol::spawn(async move {
@@ -769,11 +773,11 @@ async fn send_many(
 			match result.await {
 				Ok(_) => {
 					pb.finish();
-					tracing::info!("Successfully sent file to someone");
+					tracing::info!("Successfully sent file");
 				}
 				Err(e) => {
 					pb.abandon();
-					tracing::error!("Send failed, {}", e);
+					tracing::error!("Sending failed: {}", e);
 				}
 			};
 		})
@@ -791,13 +795,12 @@ async fn receive(
 	{
 		let req = transfer::request_file(wormhole, relay_hints, transit_abilities, ctrlc_handler())
 			.await
-			.context("Could not get an offer")?;
-		/* If None, the task got cancelled */
+			.context("No offer received")?;
 		if let Some(req) = req { receive_inner_v1(req, target_dir, noconfirm).await } else { Ok(()) }
 	}
 	#[cfg(feature = "experimental-transfer-v2")]
 	{
-		let req = transfer::request(wormhole, relay_hints, transit_abilities, ctrlc_handler()).await.context("Could not get an offer")?;
+		let req = transfer::request(wormhole, relay_hints, transit_abilities, ctrlc_handler()).await.context("No offer received")?;
 
 		match req {
 			Some(transfer::ReceiveRequest::V1(req)) => receive_inner_v1(req, target_dir, noconfirm).await,
@@ -853,19 +856,19 @@ async fn receive_inner_v1(req: transfer::ReceiveRequestV1, target_dir: &std::pat
 
 	// Then, accept if the file exists
 	if !file_path.exists() || noconfirm {
-		let mut file = OpenOptions::new().write(true).create_new(true).open(&file_path).await.context("Failed to create destination file")?;
+		let mut file = OpenOptions::new().write(true).create_new(true).open(&file_path).await.context("File creation failed")?;
 		return req
 			.accept(&transit_handler, create_progress_handler(pb), &mut file, ctrlc_handler())
 			.await
-			.context("Receive process failed");
+			.context("Receiving failed");
 	}
 
 	// If there is a collision, ask whether to overwrite
 	if !util::ask_user(
 		if should_use_color() {
-			format!("Override existing file {}?", file_path.display().red().bold())
+			format!("Overwrite existing file {}?", file_path.display().red().bold())
 		} else {
-			format!("Override existing file {}?", file_path.display())
+			format!("Overwrite existing file {}?", file_path.display())
 		},
 		false,
 	)
@@ -877,7 +880,7 @@ async fn receive_inner_v1(req: transfer::ReceiveRequestV1, target_dir: &std::pat
 	let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(&file_path).await?;
 	req.accept(&transit_handler, create_progress_handler(pb), &mut file, ctrlc_handler())
 		.await
-		.context("Receive process failed")
+		.context("Receiving failed")
 }
 
 #[cfg(feature = "experimental-transfer-v2")]
@@ -912,7 +915,7 @@ async fn receive_inner_v2(req: transfer::ReceiveRequestV2, target_dir: &std::pat
 
 	// Create a temporary directory for receiving
 	use rand::Rng;
-	let tmp_dir = target_dir.join(format!("wormhole-tmp-{:06}", rand::thread_rng().gen_range(0..1_000_000)));
+	let tmp_dir = target_dir.join(format!("rwh-tmp-{:06}", rand::thread_rng().gen_range(0..1_000_000)));
 	smol::fs::create_dir_all(&tmp_dir).await.context("Failed to create temporary directory for receiving")?;
 
 	// Prepare the receive by creating all directories
@@ -920,7 +923,7 @@ async fn receive_inner_v2(req: transfer::ReceiveRequestV2, target_dir: &std::pat
 
 	// Accept the offer and receive it
 	let answer = offer.accept_all(&tmp_dir);
-	req.accept(&transit_handler, answer, on_progress, ctrlc_handler()).await.context("Receive process failed")?;
+	req.accept(&transit_handler, answer, on_progress, ctrlc_handler()).await.context("Receiving failed")?;
 
 	// Put in all the symlinks last, this greatly reduces the attack surface
 	// offer.create_symlinks(&tmp_dir).await?;
@@ -956,7 +959,7 @@ async fn receive_inner_v2(req: transfer::ReceiveRequestV2, target_dir: &std::pat
 	// Delete the temporary directory
 	smol::fs::remove_dir_all(&tmp_dir)
 		.await
-		.context(format!("Failed to delete {}, please do it manually", tmp_dir.display()))?;
+		.context(format!("Failed to delete {} (please do it manually)", tmp_dir.display()))?;
 
 	Ok(())
 }
@@ -983,17 +986,17 @@ fn should_use_color() -> bool {
 		return false;
 	}
 
-	// Then check RWH_COLOR_FORCE - if set and not empty/"0", enable colors regardless of terminal
-	if std::env::var_os("RWH_COLOR_FORCE").is_some_and(|e| !e.is_empty() && e != "0") {
+	// Then check CLICOLOR_FORCE - if set and not empty/"0", enable colors regardless of terminal
+	if std::env::var_os("CLICOLOR_FORCE").is_some_and(|e| !e.is_empty() && e != "0") {
 		return true;
 	}
 
-	// Check RWH_COLOR - if set and not empty/"0", use colors only when writing to a terminal
-	if std::env::var_os("RWH_COLOR").is_some_and(|e| !e.is_empty() && e != "0") {
+	// Check CLICOLOR - if set and not empty/"0", use colors only when writing to a terminal
+	if std::env::var_os("CLICOLOR").is_some_and(|e| !e.is_empty() && e != "0") {
 		return std::io::stdout().is_terminal();
 	}
 
-	// Modern default (acting as if RWH_COLOR is set)
+	// Modern default for colors
 	std::io::stdout().is_terminal()
 }
 

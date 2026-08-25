@@ -1,44 +1,44 @@
-.TH WORMHOLE-RS "1" "May 2024" "wormhole-rs 0.6.1" "User Commands"
+.TH RWH "1" "Aug 2026" "rwh 0.13.0" "User Commands"
 .SH NAME
-wormhole-rs \- manual page for wormhole-rs 0.6.1
+rwh \- manual page for rwh 0.13.0
 .SH DESCRIPTION
-wormhole\-rs 0.6.1
+rwh 0.12.0
 .SS "USAGE:"
 .IP
-wormhole\-rs [OPTIONS] <SUBCOMMAND>
+rwh [OPTIONS] <SUBCOMMAND>
 .SS "OPTIONS:"
 .TP
 \fB\-h\fR, \fB\-\-help\fR
-Print this help message
+Print help
 .TP
 \fB\-v\fR, \fB\-\-verbose\fR
 Enable logging to stdout, for debugging purposes
 .TP
 \fB\-V\fR, \fB\-\-version\fR
-Print version information
+Print version
 .SS "SUBCOMMANDS:"
 .TP
 forward
 Forward ports from one machine to another
 .TP
 receive
-Receive a file or a folder [aliases: rx]
+Receive a file/folder [alias: rx]
 .TP
 send
-Send a file or a folder [aliases: tx]
+Send a file/folder [alias: tx]
 .TP
-send\-many
-Send a file to many recipients. READ HELP PAGE FIRST!
+to\-many
+Send a file to many recipients. INCREASED SECURITY RISK!
 .PP
 Run a subcommand with `\-\-help` to know how it's used.
-To send files, use `wormhole send <PATH>`.
-To receive files, use `wormhole receive <CODE>`.
+To send files, use `rwh send <PATH>`.
+To receive files, use `rwh receive <CODE>`.
 .SH AUTHOR
 .TP
-Matthias Geiger <werdahias@riseup.net>
+Matthias Geiger <werdahias@riseup.net> <github.com/pepa65>
 .SH COPYRIGHT
 .PP
-Copyright \[co] 2024 Matthias Geiger
+Copyright \[co] 2024 Matthias Geiger 2026 <github.com/pepa65>
 .PP
 This manual page was written for the Debian system (and may be used by
 others).
