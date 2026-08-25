@@ -269,10 +269,7 @@ fn main() {
 }
 
 async fn async_main() -> eyre::Result<()> {
-	color_eyre::config::HookBuilder::default()
-		.display_location_section(false)
-		.display_env_section(false)
-		.install()?;
+	color_eyre::config::HookBuilder::default().display_location_section(false).display_env_section(false).install()?;
 
 	let app = WormholeCli::parse();
 	NO_COLOR.set(app.no_color).expect("");
@@ -595,17 +592,9 @@ async fn make_send_offer(mut files: Vec<PathBuf>, file_name: Option<String>) -> 
 		(_, None) => {
 			let mut names = std::collections::BTreeMap::new();
 			for path in &files {
-				eyre::ensure!(
-					path.file_name().is_some(),
-					"'{}' needs to be send separately with --rename flag (or rename it first)",
-					path.display()
-				);
+				eyre::ensure!(path.file_name().is_some(), "'{}' needs to be send separately with --rename flag (or rename it first)", path.display());
 				if let Some(old) = names.insert(path.file_name(), path) {
-					eyre::bail!(
-						"Same paths: '{}' and '{}', send separately or rename one first",
-						old.display(),
-						path.display(),
-					);
+					eyre::bail!("Same paths: '{}' and '{}', send separately or rename one first", old.display(), path.display(),);
 				}
 			}
 			Ok(transfer::offer::OfferSend::new_paths(files).await?)
@@ -793,9 +782,7 @@ async fn receive(
 ) -> eyre::Result<()> {
 	#[cfg(not(feature = "experimental-transfer-v2"))]
 	{
-		let req = transfer::request_file(wormhole, relay_hints, transit_abilities, ctrlc_handler())
-			.await
-			.context("No offer received")?;
+		let req = transfer::request_file(wormhole, relay_hints, transit_abilities, ctrlc_handler()).await.context("No offer received")?;
 		if let Some(req) = req { receive_inner_v1(req, target_dir, noconfirm).await } else { Ok(()) }
 	}
 	#[cfg(feature = "experimental-transfer-v2")]
@@ -857,10 +844,7 @@ async fn receive_inner_v1(req: transfer::ReceiveRequestV1, target_dir: &std::pat
 	// Then, accept if the file exists
 	if !file_path.exists() || noconfirm {
 		let mut file = OpenOptions::new().write(true).create_new(true).open(&file_path).await.context("File creation failed")?;
-		return req
-			.accept(&transit_handler, create_progress_handler(pb), &mut file, ctrlc_handler())
-			.await
-			.context("Receiving failed");
+		return req.accept(&transit_handler, create_progress_handler(pb), &mut file, ctrlc_handler()).await.context("Receiving failed");
 	}
 
 	// If there is a collision, ask whether to overwrite
@@ -878,9 +862,7 @@ async fn receive_inner_v1(req: transfer::ReceiveRequestV1, target_dir: &std::pat
 	}
 
 	let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(&file_path).await?;
-	req.accept(&transit_handler, create_progress_handler(pb), &mut file, ctrlc_handler())
-		.await
-		.context("Receiving failed")
+	req.accept(&transit_handler, create_progress_handler(pb), &mut file, ctrlc_handler()).await.context("Receiving failed")
 }
 
 #[cfg(feature = "experimental-transfer-v2")]
