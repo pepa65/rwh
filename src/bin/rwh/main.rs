@@ -175,7 +175,7 @@ enum ForwardCommand {
 #[derive(Debug, Subcommand)]
 enum WormholeCommand {
 	/// Send a file/folder
-	#[command(visible_alias = "s")]
+	#[command(visible_alias = "tx")]
 	Send {
 		#[clap(flatten)]
 		common: CommonArgs,
@@ -185,7 +185,7 @@ enum WormholeCommand {
 		common_send: CommonSenderArgs,
 	},
 	/// Receive a file/folder
-	#[command(visible_alias = "r")]
+	#[command(visible_alias = "rx")]
 	Receive {
 		/// Accept the transfer without confirmation
 		#[arg(short = 'y', long, visible_alias = "yes")]
@@ -205,7 +205,7 @@ enum WormholeCommand {
         The application terminates on interruption, after a timeout or after a
         number of sent files, whichever comes first. It will always try to send
         at least one file, regardless of the limits.")]
-	SendMany {
+	ToMany {
 		/// Only send the file up to n times, limiting the number of people that may receive it.
 		/// These are also the number of tries a potential attacker gets at guessing the password.
 		#[arg(short = 'n', long, value_name = "N", default_value = "30")]
@@ -239,6 +239,7 @@ enum WormholeCommand {
 	about,
 	arg_required_else_help = true,
 	disable_help_subcommand = true,
+	infer_subcommands = true,
 	propagate_version = true,
 	after_help = "Run a subcommand with `--help` to know how it's used.",
 	help_template = "\
@@ -306,7 +307,7 @@ async fn async_main() -> eyre::Result<()> {
 
 			Box::pin(send(wormhole, relay_hints, offer, transit_abilities)).await?;
 		}
-		WormholeCommand::SendMany {
+		WormholeCommand::ToMany {
 			tries,
 			timeout,
 			common,
