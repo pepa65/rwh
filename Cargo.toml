@@ -44,7 +44,7 @@ hkdf = "0.13"
 hex = { version = "0.4.2", features = ["serde"] }
 rand = "0.10.2"
 base64 = "0.23.1"
-time = { version = "0.3.7", features = ["formatting"] }
+time = { version = "0.3.47", features = ["formatting"] }
 futures-lite = "2.6"
 futures-concurrency = "7.7.1"
 derive_more = { version = "2", default-features = false, features = ["display", "deref", "from"] }
@@ -65,7 +65,7 @@ async-task = "4.7"
 
 # Transfer
 rmp-serde = { version = "1.0.0", optional = true }
-tar = { version = "0.4.33", optional = true }
+tar = { version = "0.4.45", optional = true }
 
 # Experimental
 fuzzt = { version = "0.3.1", optional = true }
@@ -83,7 +83,7 @@ color-eyre = "0.6"
 unit-prefix = "0.5"
 ctrlc = "3.2.1"
 qr2term = "0.3"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 # Clipboard
 arboard = { version = "3", default-features = false, optional = true }
