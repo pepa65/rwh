@@ -1,6 +1,8 @@
 [package]
 name = "rwh"
 version = "0.13.7"
+edition = "2024"
+rust-version = "1.97.1"
 authors = ["Fina Wilke <code@felinira.net>", "piegames <info@piegames.de>", "Brian Warner <warner@lothar.com>", "github.com/pepa65"]
 description = "Safe filetransfer through magic-wormhole"
 keywords = ["magic-wormhole", "wormhole", "file-transfer", "transfer"]
@@ -10,8 +12,6 @@ homepage = "http://magic-wormhole.io/"
 repository = "https://github.com/pepa65/rwh"
 documentation = "https://docs.rs/rwh"
 license = "EUPL-1.2"
-rust-version = "1.97"
-edition = "2024"
 
 [lib]
 name = "rwh"
