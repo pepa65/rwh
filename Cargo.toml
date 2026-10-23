@@ -1,6 +1,6 @@
 [package]
 name = "rwh"
-version = "0.13.11"
+version = "0.13.12"
 edition = "2024"
 rust-version = "1.97.1"
 authors = ["Fina Wilke <code@felinira.net>", "piegames <info@piegames.de>", "Brian Warner <warner@lothar.com>", "github.com/pepa65"]
