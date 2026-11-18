@@ -433,7 +433,7 @@ impl RelayHint {
 	/// Basic usage (default server):
 	///
 	/// ```
-	/// use magic_wormhole::transit;
+	/// use rwh::transit;
 	/// let hint =
 	///     transit::RelayHint::from_urls(None, [transit::DEFAULT_RELAY_SERVER.parse().unwrap()])
 	///         .unwrap();
@@ -442,7 +442,7 @@ impl RelayHint {
 	/// Custom relay server from url with name:
 	///
 	/// ```
-	/// use magic_wormhole::transit;
+	/// use rwh::transit;
 	/// # let url: url::Url = transit::DEFAULT_RELAY_SERVER.parse().unwrap();
 	/// let hint = transit::RelayHint::from_urls(url.host_str().map(str::to_owned), [url]).unwrap();
 	/// ```

@@ -98,7 +98,7 @@ impl<V: serde::Serialize + Send + Sync + 'static> MailboxConnection<V> {
 	///
 	/// ```no_run
 	/// # fn main() -> eyre::Result<()> { async_io::block_on(async {
-	/// use magic_wormhole::{AppConfig, MailboxConnection, transfer::APP_CONFIG};
+	/// use rwh::{AppConfig, MailboxConnection, transfer::APP_CONFIG};
 	/// let config = APP_CONFIG;
 	/// let mailbox_connection = MailboxConnection::create(config, 2).await?;
 	/// # Ok(()) })}
@@ -120,7 +120,7 @@ impl<V: serde::Serialize + Send + Sync + 'static> MailboxConnection<V> {
 	/// # #[cfg(feature = "entropy")]
 	/// # {
 	/// # fn main() -> eyre::Result<()> { async_io::block_on(async {
-	/// use magic_wormhole::{MailboxConnection, transfer::APP_CONFIG};
+	/// use rwh::{MailboxConnection, transfer::APP_CONFIG};
 	/// let config = APP_CONFIG;
 	/// let mailbox_connection =
 	///     MailboxConnection::create_with_password(config, "secret".parse()?).await?;
@@ -161,7 +161,7 @@ impl<V: serde::Serialize + Send + Sync + 'static> MailboxConnection<V> {
 	///
 	/// ```no_run
 	/// # fn main() -> eyre::Result<()> { async_io::block_on(async {
-	/// use magic_wormhole::{Code, MailboxConnection, Nameplate, transfer::APP_CONFIG};
+	/// use rwh::{Code, MailboxConnection, Nameplate, transfer::APP_CONFIG};
 	/// let config = APP_CONFIG;
 	/// let code = "5-password".parse()?;
 	/// let mailbox_connection = MailboxConnection::connect(config, code, false).await?;
@@ -194,10 +194,10 @@ impl<V: serde::Serialize + Send + Sync + 'static> MailboxConnection<V> {
 	/// # Examples
 	///
 	/// ```
-	/// # fn main() -> eyre::Result<()> { use magic_wormhole::WormholeError;
+	/// # fn main() -> eyre::Result<()> { use rwh::WormholeError;
 	/// # #[cfg(feature = "entropy")]
 	/// return async_io::block_on(async {
-	/// use magic_wormhole::{transfer::APP_CONFIG, MailboxConnection, Mood};
+	/// use rwh::{transfer::APP_CONFIG, MailboxConnection, Mood};
 	/// let config = APP_CONFIG;
 	/// let mailbox_connection = MailboxConnection::create_with_password(config, "secret-code-password".parse()?)
 	///     .await?;
